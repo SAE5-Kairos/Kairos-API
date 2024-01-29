@@ -6,6 +6,7 @@ def home(request):
     ]
     # db = Database.get()
     # print(db.run("SELECT * FROM Salle").fetch())
+    # db.close()
     [
         {"id": 1, "id_prof": 1, "duree": 2},
         {"id": 2, "id_prof": 1, "duree": 4},
