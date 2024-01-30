@@ -16,14 +16,20 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from API_views import views_generator, views_salles
+from API_views import views_generator, views_salles, views_professeurs
 from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', views.home),
     path('api/generate_edt/', views_generator.generate_edt),
+    # Salles
     path('api/salles/', views_salles.get_all),
-    path('api/salle/<int:code>/', views_salles.get_by_id),
+    path('api/salle/<int:code>/', views_salles.by_id),
     path('api/salle/', views_salles.add),
+    # Utilisateurs
+    path('api/utilisateurs/', views_professeurs.get_all),
+    path('api/utilisateur/<int:code>/', views_professeurs.by_id),
+    path('api/utilisateur/', views_professeurs.add),
+
 ]
