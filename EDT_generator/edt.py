@@ -1,5 +1,4 @@
 import asyncio, random
-from numpy import mean
 
 from EDT_generator.cours import Cours
 
@@ -26,7 +25,7 @@ class EDT:
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # Vendredi
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # Samedi
     ]
-    
+
     def __init__(self):
         self.placed_cours:list(Cours) = []
         self.day_index = 0
@@ -37,7 +36,7 @@ class EDT:
         self.COURSE_DAMAGES = [ {course: damages.copy() for course, damages in day.items()} for day in self.COURSE_DAMAGES]
 
         #self.set_course_probability()
-    
+
     def get_signature(self):
         singature = []
         for course in self.placed_cours:
@@ -76,7 +75,7 @@ class EDT:
 
                     if course not in EDT.COURSE_DAMAGES[day_index]:
                         EDT.COURSE_DAMAGES[day_index][course] = {}
-                    
+
                     if other_course not in EDT.COURSE_DAMAGES[day_index]:
                         EDT.COURSE_DAMAGES[day_index][other_course] = {}
 
@@ -98,8 +97,8 @@ class EDT:
             self.COURSE_DAMAGES[day_index].pop(remove_course, None)
 
             for course in self.COURSE_DAMAGES[day_index]:
-                for slot in self.COURSE_DAMAGES[day_index][course]: 
-                    if remove_course in self.COURSE_DAMAGES[day_index][course][slot]: 
+                for slot in self.COURSE_DAMAGES[day_index][course]:
+                    if remove_course in self.COURSE_DAMAGES[day_index][course][slot]:
                         self.COURSE_DAMAGES[day_index][course][slot].remove(remove_course)
 
     def get_courses_damages_on(self, source, start, on):
@@ -139,7 +138,7 @@ class EDT:
                 for course_to_compare in damages:
                     if course_to_compare == course: continue
                     damages[course][heure].append(self.get_courses_damages_on(source=course, start=heure, on=course_to_compare))
-        
+
         return damages
 
     def get_courses_pool(self, pool_size=2, randomize=True):
@@ -160,7 +159,7 @@ class EDT:
         if len(creneaux) <= pool_size: return [creneau[0] for creneau in creneaux]
         while len(chosen_creneaux) < pool_size and max_tours > 0:
             if index >= len(creneaux): index = 0; max_tours -= 1
-            if creneaux[index][1] in chosen_creneaux: index += 1; continue    
+            if creneaux[index][1] in chosen_creneaux: index += 1; continue
 
             # Le cours est choisit s'il tombe entre 0, le nombre de point supérieur à la moyenne de son score
             # Le cours n'est pas choisit s'il tombe entre le nombre de point supérieur à la moyenne de son score, la distance de son score à 100 divisée par 2
@@ -185,11 +184,11 @@ class EDT:
                     chosen_creneaux.append(creneaux[index])
             index += 1
         return [creneau[0] for creneau in chosen_creneaux]
-    
+
     def get_courses_hour_pool(self, course, pool_size=2, randomize=True):
         # on a besoin de savoir combien de disponibilités chaque cours condamne
         damages = self.get_courses_damages()[course]
-        
+
         # Récupérer les meilleurs heures de début pour le cours
         # NOTE: pour le moment on prend les deux premières heures de début les plus probables
         sorted_hour = sorted(damages, key=lambda heure: max(damages[heure]) if damages[heure] else 0)
@@ -223,7 +222,7 @@ class EDT:
                         chosen_hours.append(sorted_hour[index])
             else:
                 if random.randint(0, 100) <= 100 - EDT.MUTATION_RATE:
-                    chosen_hours.append(sorted_hour[index]) 
+                    chosen_hours.append(sorted_hour[index])
             index += 1
         return chosen_hours
 
@@ -252,7 +251,7 @@ class EDT:
                 except Exception as e:
                     print(e)
                     self.final = True
-        
+
         if len(pool) == 0: self.final = True
 
     def place_cours(self, course, jour_index, heure_index):
@@ -265,7 +264,7 @@ class EDT:
         course.jour = jour_index
         self.placed_cours.append(course)
         self.update_course_probability(course)
-    
+
     def get_score(self):
         """
         score: 0 --> 100: 100 étant le meilleur score
@@ -302,7 +301,7 @@ class EDT:
 
     def __repr__(self) -> str:
         return "\n".join([str(day) for day in self.week])
-    
+
     def jsonify(self):
         json_obj = {
             'Lundi': [
@@ -371,6 +370,6 @@ class EDT:
                 edt.place_cours(course, hour)
             except:
                 break
-        
+
         return edt
 
