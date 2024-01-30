@@ -16,7 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from API_views import views_generator, views_salles, views_professeurs, views_indisponibilite
+from API_views import views_generator, views_salles, views_utilisateurs, views_indisponibilite, views_ressource
 from . import views
 
 urlpatterns = [
@@ -28,12 +28,16 @@ urlpatterns = [
     path('api/salle/<int:code>/', views_salles.by_id),
     path('api/salle/', views_salles.add),
     # Utilisateurs
-    path('api/utilisateurs/', views_professeurs.get_all),
-    path('api/utilisateur/<int:code>/', views_professeurs.by_id),
-    path('api/utilisateur/', views_professeurs.add),
+    path('api/utilisateurs/', views_utilisateurs.get_all),
+    path('api/utilisateur/<int:code>/', views_utilisateurs.by_id),
+    path('api/utilisateur/', views_utilisateurs.add),
     # Indisponibilite
     path('api/indisponibilites/', views_indisponibilite.get_all),
     path('api/indisponibilite/<int:code>/', views_indisponibilite.by_id),
     path('api/indisponibilite/', views_indisponibilite.add),
+    # Ressource
+    path('api/ressources/', views_ressource.get_all),
+    path('api/ressource/<int:code>/', views_ressource.by_id),
+    path('api/ressource/', views_ressource.add),
 
 ]
