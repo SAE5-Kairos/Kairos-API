@@ -170,12 +170,12 @@ class EDT_GENERATOR:
     LOW_GRANULARITY_SCORE_COEF = 2
     """Multiplicateur de la variation de score lors de la pose d'un bloque à petite granularité"""
 
-    LEARNING_TABLE_LOCK = asyncio.Lock()
+    LEARNING_TABLE_LOCK = None
 
     CREATED_EDT = {}
     """{signature: nb_times}"""
 
-    CREATED_EDT_LOCK = asyncio.Lock()
+    CREATED_EDT_LOCK = None
 
     @classmethod
     async def update_learning_table(cls, key, value):
@@ -201,9 +201,11 @@ class EDT_GENERATOR:
                 cls.CREATED_EDT[key] = 1
 
     @staticmethod
-    def reset():
+    def init():
         EDT_GENERATOR.LEARNING_TABLE = {}
         EDT_GENERATOR.CREATED_EDT = {}
+        LEARNING_TABLE_LOCK = asyncio.Lock()
+        CREATED_EDT_LOCK = asyncio.Lock()
 
     @staticmethod
     async def generate_edts(nb_ants=50, nb_iterations=1):
