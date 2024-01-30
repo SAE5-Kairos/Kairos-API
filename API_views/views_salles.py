@@ -18,7 +18,7 @@ def get_all(request):
 
 @csrf_exempt
 @method_awaited(["GET", "DELETE", "PUT"])
-def get_by_id(request, code: int):
+def by_id(request, code: int):
     db = Database.get()
     if request.method == "GET":
         sql = """
@@ -28,7 +28,7 @@ def get_by_id(request, code: int):
         """
         data = db.run([sql, (code,)]).fetch()
         db.close()
-        return JsonResponse(data[0], safe=False)
+        return JsonResponse(data[0] if len(data) > 0 else {"error":f"Data not found for key {code}"}, safe=False)
     elif request.method == "DELETE":
         sql = """
         DELETE
@@ -44,7 +44,7 @@ def get_by_id(request, code: int):
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            nom = body['nom']
+            nom = body['Nom']
         except:
             return JsonResponse({"error":"You must send a body"}, safe=False)
 
@@ -54,9 +54,9 @@ def get_by_id(request, code: int):
                     SET Salle.Nom = %s
                     WHERE Salle.IdSalle = %s
                 """
-        db.run([sql, (nom, code, )]).fetch()
+        nb_row_affected = db.run([sql, (nom, code, )]).fetch(rowcount=True)
         db.close()
-        return JsonResponse(True, safe=False)
+        return JsonResponse(nb_row_affected == 1, safe=False)
 
 
 @csrf_exempt
@@ -66,7 +66,7 @@ def add(request):
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        nom = body['nom']
+        nom = body['Nom']
     except:
         return JsonResponse({"error":"You must send a body"}, safe=False)
 
