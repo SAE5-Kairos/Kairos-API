@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from API_views import views_generator, views_salles, views_utilisateurs, views_indisponibilite, views_ressource, \
-    views_cours, views_groupe
+    views_cours, views_groupe, views_EDT
 from . import views
 
 urlpatterns = [
@@ -48,5 +48,9 @@ urlpatterns = [
     path('api/groupes/', views_groupe.get_all),
     path('api/groupe/<int:code>/', views_groupe.by_id),
     path('api/groupe/', views_groupe.add),
+    # EDT
+    path('api/emploidutemps/', views_EDT.get_all),
+    path('api/emploidutemp/<int:code>/', views_EDT.by_id),
+    path('api/emploidutemp/', views_EDT.add),
 
 ]
