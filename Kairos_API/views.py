@@ -2,7 +2,7 @@ from django.http import JsonResponse
 
 def home(request):
     api_paths = [
-        {"path": "generate_edt/", "POST": "[{'id': int, 'id_prof': int, 'duree': int}]"}
+        {"path": "generate_edt/", "POST": "[{'id': int, 'id_prof': int, 'duree': int, 'semaine': int, 'annee': int}]"}
     ]
     # db = Database.get()
     # print(db.run("SELECT * FROM Salle").fetch())
