@@ -204,11 +204,13 @@ class EDT_GENERATOR:
     def init():
         EDT_GENERATOR.LEARNING_TABLE = {}
         EDT_GENERATOR.CREATED_EDT = {}
-        LEARNING_TABLE_LOCK = asyncio.Lock()
-        CREATED_EDT_LOCK = asyncio.Lock()
+        EDT_GENERATOR.LEARNING_TABLE_LOCK = asyncio.Lock()
+        EDT_GENERATOR.CREATED_EDT_LOCK = asyncio.Lock()
 
     @staticmethod
     async def generate_edts(nb_ants=50, nb_iterations=1):
+        EDT_GENERATOR.init()
+
         EDT.set_course_probability()
         EDT_GENERATOR.PARAM_SAVE['PHEROMONE_FUNC'] = EDT_GENERATOR.PHEROMONE_FUNC
         batch_size = 10

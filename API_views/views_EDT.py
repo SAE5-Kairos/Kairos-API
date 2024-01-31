@@ -34,7 +34,7 @@ def by_id(request, code: int):
         DELETE
         FROM EDT 
         WHERE EDT.IdEDT = %s;
-            """
+        """
         sql_cours = """
         DELETE
         FROM Cours 

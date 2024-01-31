@@ -29,6 +29,7 @@ def by_id(request, code: int):
         data = db.run([sql, (code,)]).fetch()
         db.close()
         return JsonResponse(data[0] if len(data) > 0 else {"error": f"Data not found for key {code}"}, safe=False)
+    
     elif request.method == "DELETE":
         sql = """
         DELETE
@@ -39,6 +40,7 @@ def by_id(request, code: int):
         nb_row_affected = db.run([sql, (code,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
+   
     else:
         date_debut = ""
         date_fin = ""
