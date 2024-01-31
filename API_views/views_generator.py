@@ -16,17 +16,27 @@ from Kairos_API.core import method_awaited
 def generate_edt(request):
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
+    db = Database.get()
     
     profs = {}
     Cours.ALL = []
     for cours_data in body:
-        id_prof = cours_data['id_prof']
+        id_banque = cours_data['id_banque']
+
+        sql = """
+            SELECT IdUtilisateur, Duree
+            FROM Banque
+            WHERE IdBanque = %s;
+        """
+        data = db.run([sql, (id_banque, )]).fetch(first=True)
+        id_prof = int(data['IdUtilisateur'])
+        duree = int(data['Duree'])
+
         if id_prof in profs:
             prof = profs[id_prof]
         else:
             dispo = [[ 1 for _ in range(24)] for __ in range(6)]
             name = ""
-            db = Database.get()
             sql = """
                 SELECT 
                     DateDebut, DateFin, 
@@ -40,7 +50,7 @@ def generate_edt(request):
             """
             params = (id_prof, cours_data['semaine'], cours_data['semaine'], cours_data['annee'], cours_data['annee'])
             data = db.run([sql, params]).fetch()
-            db.close()
+            
             for indispo in data:
                 if indispo["DateFin"].isocalendar().week > cours_data['semaine']: indispo['JourFin'] = 6
 
@@ -63,8 +73,8 @@ def generate_edt(request):
             prof = Professeur(dispo, name)
             profs[id_prof] = prof
 
-        Cours(prof, cours_data['duree'] )
-    
+        Cours(prof, duree / 2 )
+    db.close()
     async def edt_generator_async(): await EDT_GENERATOR.generate_edts(15, int(len(Cours.ALL) * 2.2))
     ants = asyncio.run(edt_generator_async())
 
