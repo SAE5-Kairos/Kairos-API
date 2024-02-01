@@ -48,9 +48,9 @@ def by_id(request, code: int):
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            date_debut = body['DateDebut']
-            date_fin = body['DateFin']
-            id_utilisateur = body['IdUtilisateur']
+            date_debut = body['date_debut']
+            date_fin = body['date_fin']
+            id_utilisateur = body['id_utilisateur']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -79,7 +79,7 @@ def add(request):
         body = json.loads(body_unicode)
         for element in body:
             sql += "(%s, %s, %s),"
-            params.extend([element['DateDebut'], element['DateFin'], element['IdUtilisateur']])
+            params.extend([element['date_debut'], element['date_fin'], element['id_utilisateur']])
         sql = sql[:-1] + ";"
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)

@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from API_views import views_generator, views_salles, views_utilisateurs, views_indisponibilite, views_ressource, \
-    views_cours, views_groupe, views_EDT, views_banque
+    views_cours, views_groupe, views_EDT, views_banque, views_type_cours, views_couleur
 from . import views
 
 urlpatterns = [
@@ -32,6 +32,8 @@ urlpatterns = [
 
     # Utilisateurs
     path('api/utilisateurs/', views_utilisateurs.get_all),
+    path('api/utilisateurs/professeur/', views_utilisateurs.get_all_professors),
+    path('api/utilisateurs/etudiant/', views_utilisateurs.get_all_students),
     path('api/utilisateur/<int:code>/', views_utilisateurs.by_id),
     path('api/utilisateur/', views_utilisateurs.add),
 
@@ -61,7 +63,18 @@ urlpatterns = [
     path('api/emploidutemp/', views_EDT.add),
 
     # Banque
-    path('api/banque/', views_banque.GetAllAdd),
+    path('api/banques/', views_banque.GetAll),
     path('api/banque/<int:code>/', views_banque.by_id),
+    path('api/banque/', views_banque.add),
+
+    # TypeCours
+    path('api/typecours/', views_type_cours.get_all),
+    path('api/typecour/<int:code>/', views_type_cours.by_id),
+    path('api/typecour/', views_type_cours.add),
+
+    # Couleurs
+    path('api/couleurs/', views_couleur.get_all),
+    path('api/couleur/<int:code>/', views_couleur.by_id),
+    path('api/couleur/', views_couleur.add),
 
 ]
