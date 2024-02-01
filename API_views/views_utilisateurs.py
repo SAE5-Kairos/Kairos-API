@@ -15,6 +15,34 @@ def get_all(request):
     db.close()
     return JsonResponse(data, safe=False)
 
+@csrf_exempt
+@method_awaited("GET")
+def get_all_professors(request):
+    db = Database.get()
+    data = db.run("""
+    SELECT IdUtilisateur, Prenom, Nom, Email, IdRole, IdGroupe 
+        FROM Utilisateur
+        LEFT JOIN RoleUtilisateur
+        ON RoleUtilisateur.IdRoleUtilisateur = Utilisateur.IdRole
+        WHERE RoleUtilisateur.Label = 'Professeur'
+        """).fetch()
+    db.close()
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
+@method_awaited("GET")
+def get_all_students(request):
+    db = Database.get()
+    data = db.run("""
+    SELECT IdUtilisateur, Prenom, Nom, Email, IdRole, IdGroupe 
+        FROM Utilisateur
+        LEFT JOIN RoleUtilisateur
+        ON RoleUtilisateur.IdRoleUtilisateur = Utilisateur.IdRole
+        WHERE RoleUtilisateur.Label = 'Etudiant'
+        """).fetch()
+    db.close()
+    return JsonResponse(data, safe=False)
+
 
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt
@@ -74,12 +102,12 @@ def by_id(request, code: int):
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            prenom = body['Prenom']
-            nom = body['Nom']
-            email = body['Email']
-            mot_de_passe = body['MotDePasse']
-            id_role = body['IdRole']
-            id_groupe = body['IdGroupe']
+            prenom = body['prenom']
+            nom = body['nom']
+            email = body['email']
+            mot_de_passe = body['mot_de_passe']
+            id_role = body['id_role']
+            id_groupe = body['id_groupe']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -111,12 +139,12 @@ def add(request):
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        prenom = body['Prenom']
-        nom = body['Nom']
-        email = body['Email']
-        mot_de_passe = body['MotDePasse']
-        id_role = body['IdRole']
-        id_groupe = body['IdGroupe']
+        prenom = body['prenom']
+        nom = body['nom']
+        email = body['email']
+        mot_de_passe = body['mot_de_passe']
+        id_role = body['id_role']
+        id_groupe = body['id_groupe']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 

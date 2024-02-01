@@ -79,8 +79,8 @@ def by_id(request, code: int):
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            libelle = body['Libelle']
-            nom = body['Nom']
+            libelle = body['libelle']
+            nom = body['nom']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -104,8 +104,8 @@ def add(request):
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        libelle = body['Libelle']
-        nom = body['Nom']
+        libelle = body['libelle']
+        nom = body['nom']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 

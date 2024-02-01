@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
-    data = db.run("SELECT * FROM Cours").fetch()
+    data = db.run("SELECT * FROM TypeCours").fetch()
     db.close()
     return JsonResponse(data, safe=False)
 
@@ -23,82 +23,69 @@ def by_id(request, code: int):
     if request.method == "GET":
         sql = """
             SELECT *
-            FROM Cours 
-            WHERE Cours.IdCours = %s
+            FROM TypeCours 
+            WHERE TypeCours.IdTypeCours = %s
         """
         data = db.run([sql, (code,)]).fetch()
         db.close()
         return JsonResponse(data[0] if len(data) > 0 else {"error": f"Data not found for key {code}"}, safe=False)
     elif request.method == "DELETE":
-        sql = """
+        sql_quota = """
         DELETE
-        FROM Cours 
-        WHERE Cours.IdCours = %s;
+        FROM Quota 
+        WHERE Quota.IdTypeCours = %s;
             """
 
-        nb_row_affected = db.run([sql, (code,)]).fetch(rowcount=True)
+        sql_type_cours = """
+        DELETE
+        FROM TypeCours 
+        WHERE TypeCours.IdTypeCours = %s;
+            """
+
+        db.run([sql_quota, (code,)]).fetch()
+        nb_row_affected = db.run([sql_type_cours, (code,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
     else:
-        numero_jour = ""
-        heure_debut = ""
-        id_banque = ""
-        id_edt = ""
-        id_groupe = ""
+        nom = ""
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            numero_jour = body['numero_jour']
-            heure_debut = body['heure_debut']
-            id_banque = body['id_banque']
-            id_edt = body['id_edt']
-            id_groupe = body['id_groupe']
+            nom = body['nom']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
         db = Database.get()
         sql = """
-                    UPDATE Cours
-                    SET Cours.NumeroJour = %s,
-                        Cours.HeureDebut = %s,
-                        Cours.IdBanque = %s,
-                        Cours.IdEDT = %s,
-                        Cours.IdGroupe = %s
-                    WHERE Cours.IdCours = %s
+                    UPDATE TypeCours
+                    SET TypeCours.Nom = %s
+                    WHERE TypeCours.IdTypeCours = %s
                 """
-        nb_row_affected = db.run([sql, (numero_jour, heure_debut, id_banque, id_edt, id_groupe, code)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (nom, code)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
+
 
 
 @csrf_exempt
 @method_awaited("POST")
 def add(request):
-    numero_jour = ""
-    heure_debut = ""
-    id_banque = ""
-    id_edt = ""
-    id_groupe = ""
+    nom = ""
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        numero_jour = body['numero_jour']
-        heure_debut = body['heure_debut']
-        id_banque = body['id_banque']
-        id_edt = body['id_edt']
-        id_groupe = body['id_groupe']
+        nom = body['nom']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 
     db = Database.get()
     sql = """
-        INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe) VALUES
-        (%s,%s,%s,%s,%s);
-    """
+                INSERT INTO TypeCours (Nom) VALUES
+                (%s);
+            """
     try:
-        nb_row_affected = db.run([sql, (numero_jour, heure_debut, id_banque, id_edt, id_groupe)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (nom,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
     except:
-        return JsonResponse({"error":"An error has occurred during the process."}, safe=False)
-
+        return JsonResponse({"error": "An error has occurred during the process."}, safe=False)
