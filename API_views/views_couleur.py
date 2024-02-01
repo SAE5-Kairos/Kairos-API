@@ -10,9 +10,11 @@ from django.views.decorators.csrf import csrf_exempt
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
-    data = db.run("SELECT * FROM Cours").fetch()
+    data = db.run("SELECT * FROM Couleur").fetch()
     db.close()
     return JsonResponse(data, safe=False)
+
+
 
 
 # Get by Id, Delete by Id, Update by Id
@@ -23,8 +25,8 @@ def by_id(request, code: int):
     if request.method == "GET":
         sql = """
             SELECT *
-            FROM Cours 
-            WHERE Cours.IdCours = %s
+            FROM Couleur 
+            WHERE Couleur.IdCouleur = %s
         """
         data = db.run([sql, (code,)]).fetch()
         db.close()
@@ -32,73 +34,55 @@ def by_id(request, code: int):
     elif request.method == "DELETE":
         sql = """
         DELETE
-        FROM Cours 
-        WHERE Cours.IdCours = %s;
+        FROM Couleur 
+        WHERE Couleur.IdCouleur = %s;
             """
 
         nb_row_affected = db.run([sql, (code,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
     else:
-        numero_jour = ""
-        heure_debut = ""
-        id_banque = ""
-        id_edt = ""
-        id_groupe = ""
+        couleur_hexa = ""
+        nom = ""
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            numero_jour = body['numero_jour']
-            heure_debut = body['heure_debut']
-            id_banque = body['id_banque']
-            id_edt = body['id_edt']
-            id_groupe = body['id_groupe']
+            couleur_hexa = body['couleur_hexa']
+            nom = body['nom']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
         db = Database.get()
         sql = """
-                    UPDATE Cours
-                    SET Cours.NumeroJour = %s,
-                        Cours.HeureDebut = %s,
-                        Cours.IdBanque = %s,
-                        Cours.IdEDT = %s,
-                        Cours.IdGroupe = %s
-                    WHERE Cours.IdCours = %s
+                    UPDATE Couleur
+                    SET Couleur.CouleurHexa = %s
+                    WHERE Couleur.IdCouleur = %s
                 """
-        nb_row_affected = db.run([sql, (numero_jour, heure_debut, id_banque, id_edt, id_groupe, code)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (couleur_hexa, code)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
-
 
 @csrf_exempt
 @method_awaited("POST")
 def add(request):
-    numero_jour = ""
-    heure_debut = ""
-    id_banque = ""
-    id_edt = ""
-    id_groupe = ""
+    couleur_hexa = ""
+    nom = ""
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        numero_jour = body['numero_jour']
-        heure_debut = body['heure_debut']
-        id_banque = body['id_banque']
-        id_edt = body['id_edt']
-        id_groupe = body['id_groupe']
+        couleur_hexa = body['couleur_hexa']
+        nom = body['nom']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 
     db = Database.get()
     sql = """
-        INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe) VALUES
-        (%s,%s,%s,%s,%s);
-    """
+           INSERT INTO Couleur (Nom, CouleurHexa) VALUES
+           (%s, %s);
+       """
     try:
-        nb_row_affected = db.run([sql, (numero_jour, heure_debut, id_banque, id_edt, id_groupe)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (nom, couleur_hexa,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
     except:
-        return JsonResponse({"error":"An error has occurred during the process."}, safe=False)
-
+        return JsonResponse({"error": "An error has occurred during the process."}, safe=False)

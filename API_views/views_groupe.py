@@ -52,9 +52,9 @@ def by_id(request, code: int):
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            nom = body['Nom']
-            id_salle = body['IdSalle']
-            id_groupe_superieur = body['IdGroupeSuperieur']
+            nom = body['nom']
+            id_salle = body['id_salle']
+            id_groupe_superieur = body['id_groupe_superieur']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -80,9 +80,9 @@ def add(request):
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        nom = body['Nom']
-        id_salle = body['IdSalle']
-        id_groupe_superieur = body['IdGroupeSuperieur']
+        nom = body['nom']
+        id_salle = body['id_salle']
+        id_groupe_superieur = body['id_groupe_superieur']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 

@@ -51,8 +51,8 @@ def by_id(request, code: int):
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
-            date = body['DateEDT']
-            version = body['Version']
+            date = body['date']
+            version = body['version']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -76,8 +76,8 @@ def add(request):
     try:
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
-        date = body['DateEDT']
-        version = body['Version']
+        date = body['date']
+        version = body['version']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 
