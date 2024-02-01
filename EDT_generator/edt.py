@@ -305,27 +305,27 @@ class EDT:
     def jsonify(self):
         json_obj = {
             'Lundi': [
-                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 0 and not cours.name.startswith('Midi')
+                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 0 and not cours.display_name.startswith('Midi')
             ],
 
             'Mardi': [
-                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 1 and not cours.name.startswith('Midi')
+                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 1 and not cours.display_name.startswith('Midi')
             ],
 
             'Mercredi': [
-                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 2 and not cours.name.startswith('Midi')
+                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 2 and not cours.display_name.startswith('Midi')
             ],
 
             'Jeudi': [
-                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 3 and not cours.name.startswith('Midi')
+                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 3 and not cours.display_name.startswith('Midi')
             ],
 
             'Vendredi': [
-                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 4 and not cours.name.startswith('Midi')
+                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 4 and not cours.display_name.startswith('Midi')
             ],
 
             'Samedi': [
-                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 5 and not cours.name.startswith('Midi')
+                {'id': cours.name, 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 5 and not cours.display_name.startswith('Midi')
             ],
         }
         return json_obj

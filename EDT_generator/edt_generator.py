@@ -328,7 +328,7 @@ class EDT_GENERATOR:
             all_damages = edt.COURSE_DAMAGES[node[1]][course][node[2]]
         except:
             print(node, course)
-            raise Exception()
+            raise Exception(edt.COURSE_DAMAGES[node[1]])
 
         for other_course in all_damages:
             if other_course not in edt.COURSE_DAMAGES[node[1]]: continue
