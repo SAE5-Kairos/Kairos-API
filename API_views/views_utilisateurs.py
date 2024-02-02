@@ -166,7 +166,7 @@ def add(request):
 def get_ressourcesByUser(request, code:int):
     db = Database.get()
     data = db.run("""
-        SELECT Ressource.*
+        SELECT DISTINCT Ressource.IdRessource as id_ressource, Ressource.Libelle as libelle, Ressource.Nom as nom
         FROM Banque
         LEFT JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
         WHERE Banque.IdUtilisateur = 5 
