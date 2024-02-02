@@ -84,7 +84,7 @@ def generate_edt(request):
 
             prof = Professeur(dispo, name)
             profs[id_prof] = prof
-
+            
         Cours(prof, duree / 2, id_banque, nom_cours, color)
     
     async def edt_generator_async(): await EDT_GENERATOR.generate_edts(15, int(len(Cours.ALL) * 2.2))
@@ -106,7 +106,7 @@ def generate_edt(request):
     
     db.run([sql, (week_date, version_edt)])
     edt_id = db.last_id()
-    print(edt_id)
+
     # Stocker les cours en base
     for course in Cours.ALL:
         if course.debut is not None:

@@ -87,7 +87,6 @@ class Ant:
             node_probabilities[node] = (self.dP * P[node] * EDT_GENERATOR.PHEROMONE_BOOST + self.dV * V[node]) * diversity_factor
 
         if not node_probabilities: return None
-
         if get_better:
             val = max(node_probabilities, key=node_probabilities.get)
             course = Cours.get_course_by_name(val[0])
@@ -210,8 +209,8 @@ class EDT_GENERATOR:
     @staticmethod
     async def generate_edts(nb_ants=50, nb_iterations=1):
         EDT_GENERATOR.init()
-
         EDT.set_course_probability()
+        
         EDT_GENERATOR.PARAM_SAVE['PHEROMONE_FUNC'] = EDT_GENERATOR.PHEROMONE_FUNC
         batch_size = 10
 
@@ -324,11 +323,11 @@ class EDT_GENERATOR:
     def get_visibility_probability(node, course, edt:EDT):
         damages = {'nb_damages': 0, 'nb_criticals_damages': 0}
         
-        try:
-            all_damages = edt.COURSE_DAMAGES[node[1]][course][node[2]]
-        except:
-            print(node, course)
-            raise Exception(edt.COURSE_DAMAGES[node[1]])
+        if course not in edt.COURSE_DAMAGES[node[1]]:
+            return 0
+
+        # Récupérer la liste des dégats du cours
+        all_damages = edt.COURSE_DAMAGES[node[1]][course][node[2]]
 
         for other_course in all_damages:
             if other_course not in edt.COURSE_DAMAGES[node[1]]: continue

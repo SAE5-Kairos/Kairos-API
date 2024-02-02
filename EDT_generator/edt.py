@@ -47,6 +47,7 @@ class EDT:
     def set_course_probability():
         courses_slots = {}
         for course in Cours.ALL:
+
             # Récupérer les slots disponibles pour un cours
             slots = course.professeur.get_slots(EDT.week, course)
             hours_slot_by_days = [
@@ -255,9 +256,10 @@ class EDT:
         if len(pool) == 0: self.final = True
 
     def place_cours(self, course, jour_index, heure_index):
-        if heure_index + 2 * course.duree > 25: raise Exception(f"Le cours ne peut pas être placé à cette heure: {heure_index} - {2 * course.duree}")
+        if heure_index + 2 * course.duree > 25: raise Exception(f"Le cours ne peut pas être placé à cette heure: {heure_index} - {2 * course.duree}\n" + str(course.professeur.get_slots(self.week, course)))
         for index in range(heure_index, int(heure_index + course.duree * 2)):
-            if self.week[jour_index][index] != 1: raise Exception(f"Le cours ne peut pas être placé à cette heure: {self.week[jour_index][index]} - {2 * course.duree}, {jour_index}j {index}")
+            if self.week[jour_index][index] != 1: 
+                raise Exception(f"Le cours ne peut pas être placé à cette heure: {self.week[jour_index][index]} - {2 * course.duree}, {jour_index}j {index}\n" + str(course.professeur.get_slots(self.week, course)))
             self.week[jour_index][index] = course
 
         course.debut = heure_index
