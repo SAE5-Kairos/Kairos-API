@@ -106,7 +106,7 @@ def generate_edt(request):
     
     db.run([sql, (week_date, version_edt)])
     edt_id = db.last_id()
-    print(edt_id)
+
     # Stocker les cours en base
     for course in Cours.ALL:
         if course.debut is not None:
