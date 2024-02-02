@@ -55,10 +55,10 @@ def by_id(request, code: int):
         db = Database.get()
         sql = """
                     UPDATE Couleur
-                    SET Couleur.CouleurHexa = %s
+                    SET Couleur.CouleurHexa = %s, Couleur.Nom = %s
                     WHERE Couleur.IdCouleur = %s
                 """
-        nb_row_affected = db.run([sql, (couleur_hexa, code)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (couleur_hexa, nom, code)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
 

@@ -160,3 +160,17 @@ def add(request):
     except:
         return JsonResponse({"error":"An error has occurred during the process."}, safe=False)
 
+
+@csrf_exempt
+@method_awaited("GET")
+def get_ressourcesByUser(request, code:int):
+    db = Database.get()
+    data = db.run("""
+        SELECT Ressource.*
+        FROM Banque
+        LEFT JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
+        WHERE Banque.IdUtilisateur = 5 
+    """).fetch()
+    db.close()
+    result = {'id_utilisateur' : code, 'ressources' : data }
+    return JsonResponse(result, safe=False)
