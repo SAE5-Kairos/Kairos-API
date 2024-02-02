@@ -1,7 +1,7 @@
 class Cours:
     ALL = []
 
-    def __init__(self, professeur, duree, name=None, color="blue", _cpy=False):
+    def __init__(self, professeur, duree, banque, name=None, color="blue", _cpy=False, _cpy_id=None):
         """
         :param professeur: @Professeur()
         :param duree: En heure (ex. 1.5, 2, ...)
@@ -10,7 +10,9 @@ class Cours:
 
         self.professeur = professeur
         self.duree = duree
-        self.name = name if name is not None else f"C{len(Cours.ALL) + 1}"
+        self.banque = banque
+        self.name = _cpy_id or f"C{len(Cours.ALL) + 1}"
+        self.display_name = name
         self.debut = None
         self.jour = None
         self.color = color
@@ -40,5 +42,5 @@ class Cours:
         return None
 
     def copy(self):
-        return Cours(self.professeur, self.duree, self.name, self.color, _cpy=True)
+        return Cours(self.professeur, self.duree, self.banque, self.display_name, self.color, _cpy=True, _cpy_id=self.name)
     

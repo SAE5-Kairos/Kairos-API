@@ -57,11 +57,14 @@ class Database:
         columns = [column[0] for column in self.cursor.description if column is not None] if self.cursor.description is not None else []
         results = []
 
+        if description:
+            return self.cursor.description
+
         if as_list:
-            return list(self.cursor.fetchall())
+            return list(self.cursor.fetchall() or [])
 
         if first:
-            return dict(zip(columns, self.cursor.fetchone()))
+            return dict(zip(columns, self.cursor.fetchone() or []))
 
         for row in self.cursor.fetchall():
             results.append(dict(zip(columns, row)))
@@ -75,9 +78,6 @@ class Database:
                 result['description'] = self.cursor.description
 
             return results
-
-        if description:
-            return self.cursor.description
         
         return results
     
