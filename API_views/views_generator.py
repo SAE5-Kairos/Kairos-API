@@ -84,7 +84,7 @@ def generate_edt(request):
 
             prof = Professeur(dispo, name)
             profs[id_prof] = prof
-
+            
         Cours(prof, duree / 2, id_banque, nom_cours, color)
     
     async def edt_generator_async(): await EDT_GENERATOR.generate_edts(15, int(len(Cours.ALL) * 2.2))

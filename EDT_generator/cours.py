@@ -1,7 +1,7 @@
 class Cours:
     ALL = []
 
-    def __init__(self, professeur, duree, banque, name=None, color="blue", _cpy=False, _cpy_id=None):
+    def __init__(self, professeur, duree, banque, name=None, color="#0000FF", _cpy=False, _cpy_id=None):
         """
         :param professeur: @Professeur()
         :param duree: En heure (ex. 1.5, 2, ...)
@@ -11,7 +11,7 @@ class Cours:
         self.professeur = professeur
         self.duree = duree
         self.banque = banque
-        self.name = _cpy_id or f"C{len(Cours.ALL) + 1}"
+        self.name = str(_cpy_id or f"C{len(Cours.ALL) + 1}")
         self.display_name = name
         self.debut = None
         self.jour = None
@@ -20,10 +20,10 @@ class Cours:
         if not _cpy: Cours.ALL.append(self)
 
     def __str___(self):
-        return self.name
+        return str(self.name)
     
     def __repr__(self):
-        return self.name
+        return str(self.name)
     
     def __eq__(self, __value: object) -> bool:
         if isinstance(__value, Cours):
