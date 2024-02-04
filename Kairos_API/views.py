@@ -14,6 +14,7 @@ def home(request):
         {"path": "utilisateurs/", "GET": ""},
         {"path": "utilisateurs/professeur/", "GET": ""},
         {"path": "utilisateurs/professeur/<int:code>/ressource/", "GET": ""},
+        {"path": "utilisateurs/professeurs/ressources/", "GET": ""},
         {"path": "utilisateurs/etudiant/", "GET": ""},
         {"path": "utilisateur/<int:code>/", "GET": ""},
         {"path": "utilisateur/<int:code>/", "PUT": "{'prenom': string,'nom': string,'email': string,'mot_de_passe': string,'id_role': int,'id_groupe': int}"},

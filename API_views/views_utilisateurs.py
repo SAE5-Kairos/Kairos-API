@@ -165,12 +165,53 @@ def add(request):
 @method_awaited("GET")
 def get_ressourcesByUser(request, code:int):
     db = Database.get()
-    data = db.run("""
+    sql = """
         SELECT DISTINCT Ressource.IdRessource as id_ressource, Ressource.Libelle as libelle, Ressource.Nom as nom
         FROM Banque
         LEFT JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
-        WHERE Banque.IdUtilisateur = 5 
-    """).fetch()
+        WHERE Banque.IdUtilisateur = %s 
+    """
+    data = db.run([sql, (code,)]).fetch()
     db.close()
     result = {'id_utilisateur' : code, 'ressources' : data }
     return JsonResponse(result, safe=False)
+
+@csrf_exempt
+@method_awaited("GET")
+def get_ressourcesAllUsers(request):
+    db = Database.get()
+    data = db.run("""
+        SELECT DISTINCT U.IdUtilisateur as id_enseignant, U.Prenom as prenom, U.Nom as nomUser, U.Email as email, R.IdRessource as id_ressource, R.Libelle as libelle, R.Nom as nomRes
+        FROM Banque as B
+        LEFT JOIN Ressource as R ON B.IdRessource = R.IdRessource
+        LEFT JOIN Utilisateur as U ON B.IdUtilisateur = U.IdUtilisateur
+    """).fetch()
+    db.close()
+
+    newData = []
+
+    for row in data:
+        rowJson = {
+            "id_enseignant": row['id_enseignant'],
+            "prenom": row['prenom'],
+            "nom": row['nomUser'],
+            "email": row['email'],
+            "ressources": [
+                {
+                    "id_ressource": row['id_ressource'],
+                    "libelle": row['libelle'],
+                    "nom": row['nomRes']
+                }
+            ]
+        }
+
+        alreadyExist = False
+        for enseignant in newData:
+            if enseignant['id_enseignant'] == rowJson['id_enseignant']:
+                alreadyExist = True
+                enseignant['ressources'].append(rowJson['ressources'][0])
+        
+        if not alreadyExist:
+            newData.append(rowJson)
+
+    return JsonResponse(newData, safe=False)
