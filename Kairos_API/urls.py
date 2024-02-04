@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/utilisateurs/', views_utilisateurs.get_all),
     path('api/utilisateurs/professeur/', views_utilisateurs.get_all_professors),
     path('api/utilisateurs/professeur/<int:code>/ressource/', views_utilisateurs.get_ressourcesByUser),
+    path('api/utilisateurs/professeurs/ressources/', views_utilisateurs.get_ressourcesAllUsers),
     path('api/utilisateurs/etudiant/', views_utilisateurs.get_all_students),
     path('api/utilisateur/<int:code>/', views_utilisateurs.by_id),
     path('api/utilisateur/', views_utilisateurs.add),
