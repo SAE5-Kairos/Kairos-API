@@ -1,7 +1,6 @@
-import random, asyncio, datetime
+import random, asyncio, datetime, gc
 from EDT_generator.edt import EDT
 from EDT_generator.cours import Cours
-
 
 class Ant:
 
@@ -10,7 +9,8 @@ class Ant:
         self.dP = dP
         self.dV = dV
         self.node_history = []
-
+        self.score_evolution = []
+        
         self.CPY_CREATED_EDT = EDT_GENERATOR.CREATED_EDT.copy()
 
     def choose_next_node(self, get_better=False):
@@ -136,8 +136,9 @@ class Ant:
 
     async def learn(self):
         score = self.edt.get_score()
-        for node in self.node_history:
-           await EDT_GENERATOR.update_learning_table(node, score)
+        await EDT_GENERATOR.update_learning_table_list(self.node_history, score)
+        #for node in self.node_history:
+        #   await EDT_GENERATOR.update_learning_table(node, score)
 
     def __str__(self):
         return f"(*-*)"
@@ -166,7 +167,7 @@ class EDT_GENERATOR:
     RELEARNING = False
     """Change le comportement d'apprentissage, afin de pouvoir sortir d'une impasse"""
 
-    LOW_GRANULARITY_SCORE_COEF = 2
+    LOW_GRANULARITY_SCORE_COEF = 1.5
     """Multiplicateur de la variation de score lors de la pose d'un bloque à petite granularité"""
 
     LEARNING_TABLE_LOCK = None
@@ -190,6 +191,14 @@ class EDT_GENERATOR:
                     # cls.LEARNING_TABLE[key] = [val for val in cls.LEARNING_TABLE[key] if val >= avg]
             else:
                 cls.LEARNING_TABLE[key] = [value]
+
+    @classmethod
+    async def update_learning_table_list(cls, list_of_key, value):
+        async with cls.LEARNING_TABLE_LOCK:
+            for key in list_of_key:
+                if key in cls.LEARNING_TABLE: cls.LEARNING_TABLE[key].append(value)
+                else:
+                    cls.LEARNING_TABLE[key] = [value]
 
     @classmethod
     async def update_created_edt(cls, key):
@@ -224,7 +233,7 @@ class EDT_GENERATOR:
             dP *= 2
             dV *= 2
             print(f"  |_dP={dP}, dV={dV}")
-
+            
             all_ants = [[Ant(dP=dP, dV=dV) for _ in range(batch_size)] for _ in range(nb_ants // batch_size)]
             if nb_ants % batch_size != 0:
                 all_ants.append([Ant(dP=dP, dV=dV) for _ in range(nb_ants % batch_size)])
@@ -232,6 +241,21 @@ class EDT_GENERATOR:
             loop = asyncio.get_event_loop()
             tasks = [loop.create_task(EDT_GENERATOR.visit_batch_of_ants(ants)) for ants in all_ants]
             Ants = await asyncio.gather(*tasks)
+            
+            # Learning
+            node_to_scores = {}
+            for ants_list in all_ants:
+                for ant in ants_list:
+                    score = ant.edt.get_score()
+                    for node in ant.node_history:
+                        if node in node_to_scores:
+                            node_to_scores[node].append(score)
+                        else: node_to_scores[node] = [score]
+
+            for node in node_to_scores:
+                if node in EDT_GENERATOR.LEARNING_TABLE:
+                    EDT_GENERATOR.LEARNING_TABLE[node].extend(node_to_scores[node])
+                else: EDT_GENERATOR.LEARNING_TABLE[node] = node_to_scores[node].copy()
 
             #batch_visit = [asyncio.create_task(EDT_GENERATOR.visit_batch_of_ants(ants=ants, dP=dP, dV=dV)) for ants in all_ants]
             #Ants = await asyncio.gather(*batch_visit)
@@ -343,6 +367,9 @@ class EDT_GENERATOR:
         loop = asyncio.get_event_loop()
         tasks = [loop.create_task(EDT_GENERATOR.run_ant2(ant)) for ant in ants]
         await asyncio.gather(*tasks)
+
+        del tasks
+        del loop
         # for ant in ants:
         #     ant.visit()
             
@@ -357,13 +384,8 @@ class EDT_GENERATOR:
     @staticmethod
     async def run_ant2(ant):
         await ant.visit()
-        await ant.learn()
+        #await ant.learn()
         await EDT_GENERATOR.update_created_edt(ant.edt.get_signature())
         # score = ant.edt.get_score()
         # for node in ant.node_history:
         #     await EDT_GENERATOR.update_learning_table(node, score)
-
-
-# Regarder l'évolution du score après avoir placé par rapport à l'évolution moyenne
-# Si l'évolution du score est bien, on ajoute à la liste un score égale au score moyen + evolution actuelle 
-# Si l'évolution du score est mauvaise, on ajoute à la liste un score égale au score moyen - evolution actuelle * Pénalisations
