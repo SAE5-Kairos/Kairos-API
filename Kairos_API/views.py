@@ -5,6 +5,10 @@ def home(request):
         {"path": "generate_edt/", "POST": "[{'id_banque': int, 'semaine': int, 'annee': int}]"},
         {"path": "admin/", "POST": "[{'id_banque': int, 'semaine': int, 'annee': int}]"},
 
+        {"path": "login/", "POST": "{'email': string, 'password': string}"},
+        {"path": "register/", "POST": "{'prenom': string, 'nom': string, 'email': string, 'mot_de_passe': string, 'id_role': int}"},
+        {"path": "reset_password/", "POST": "{'email': string, 'ancien_mdp': string, 'nouveau_mdp': string}"},
+
         {"path": "salles/", "GET": ""},
         {"path": "salle/<int:code>/", "GET": ""},
         {"path": "salle/<int:code>/", "PUT": "{'nom': string}"},
