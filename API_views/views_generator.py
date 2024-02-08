@@ -87,8 +87,10 @@ def generate_edt(request):
             
         Cours(prof, duree / 2, id_banque, nom_cours, color)
     
-    async def edt_generator_async(): await EDT_GENERATOR.generate_edts(15, int(len(Cours.ALL) + 10))
+    debut = datetime.datetime.now()
+    async def edt_generator_async(): await EDT_GENERATOR.generate_edts(25, int(len(Cours.ALL) * 2))
     ants = asyncio.run(edt_generator_async())
+    print("> Durée totale: " + str(datetime.datetime.now() - debut))
 
     ant = Ant(1, 0)
     ant = asyncio.run(ant.visit(get_better=True))

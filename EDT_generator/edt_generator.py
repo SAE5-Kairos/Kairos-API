@@ -1,6 +1,7 @@
 import random, asyncio, datetime, gc
 from EDT_generator.edt import EDT
 from EDT_generator.cours import Cours
+from collections import defaultdict
 
 class Ant:
 
@@ -10,6 +11,7 @@ class Ant:
         self.dV = dV
         self.node_history = []
         self.score_evolution = []
+        self.focused_score = None
         
         self.CPY_CREATED_EDT = EDT_GENERATOR.CREATED_EDT.copy()
 
@@ -45,10 +47,26 @@ class Ant:
                 for slot in day_slots:
                     for heure in slot["heures_index"]:
                         # On récupère la probabilité de choisir ce cours en fonction des phéromones
-                        P[(course.name, jour, heure)] = EDT_GENERATOR.get_pheromone_probability((course.name, jour, heure), 'max' if get_better else None)
+                        P[(course.name, jour, heure)] = EDT_GENERATOR.get_pheromone_probability((course.name, jour, heure), 'better' if get_better else None)
 
                         # On récupère la probabilité de choisir ce cours en fonction de la visibilité
                         V[(course.name, jour, heure)] = EDT_GENERATOR.get_visibility_probability((course.name, jour, heure), course, self.edt)
+
+        if get_better:
+            better_node = max(P, key=lambda elmt: P[elmt])
+            print(P[better_node])
+            
+            if self.focused_score is None:
+                self.focused_score = P[better_node]
+                return better_node
+            
+            elif P[better_node] >= self.focused_score:
+                return better_node
+            
+            return None
+        
+        if EDT_GENERATOR.RELEARNING:
+            return list(V.keys())[random.randint(0, len(V) - 1)]
 
         max_V = max(V.values()) if V else 0
         if max_V != 0:
@@ -80,21 +98,13 @@ class Ant:
 
             # On calcule le facteur de diversité
             if total_nb_edt_with_same_signature != 0 and times_furtur_signature * (1 + EDT_GENERATOR.DIVERSITY_COEF) > total_nb_edt_with_same_signature and not get_better:
-                diversity_factor = 1 - EDT_GENERATOR.DIVERSITY_COEF
+                diversity_factor = EDT_GENERATOR.DIVERSITY_COEF
             else:
                 diversity_factor = 1
 
             node_probabilities[node] = (self.dP * P[node] * EDT_GENERATOR.PHEROMONE_BOOST + self.dV * V[node]) * diversity_factor
 
         if not node_probabilities: return None
-        if get_better:
-            val = max(node_probabilities, key=node_probabilities.get)
-            course = Cours.get_course_by_name(val[0])
-
-            current_score = self.edt.get_score()
-            if node_probabilities[val] < current_score:
-                return None
-            return val
         
         # On lance un random pour choisir le prochain cours
         max_probability = sum(node_probabilities.values())
@@ -120,8 +130,12 @@ class Ant:
             # On calcule le score après avoir placé le cours et on l'ajoute à la liste des phéromones
             if node in EDT_GENERATOR.LEARNING_TABLE:
                 variation_score = self.edt.get_score() - before_score
-                moy_score = sum(EDT_GENERATOR.LEARNING_TABLE[node]) / len(EDT_GENERATOR.LEARNING_TABLE[node])
-                await EDT_GENERATOR.update_learning_table(node, moy_score + variation_score * EDT_GENERATOR.LOW_GRANULARITY_SCORE_COEF)
+                
+                scores = [float(score) for score in EDT_GENERATOR.LEARNING_TABLE[node]]
+                moy_score = sum(scores) / len(scores)
+
+                score = str(moy_score + variation_score)
+                await EDT_GENERATOR.update_learning_table(node, score)
 
             # Update CREATED_EDT (pour la diversité) selon la signature de l'EDT
             # On cherche a limiter la taille du dico des possibilités pour ne pas faire exploser la mémoire et le temps d'execution
@@ -155,7 +169,7 @@ class EDT_GENERATOR:
     CRITICAL_DAMAGES_COEF = 5
     """Coefficient de pondération des dommages critiques par rapport aux dommages normaux"""
 
-    DIVERSITY_COEF = 0.2 # Si l'edt en conception est similaire à plus de [DIVERSITY_COEF] % des edt déjà créés, on diminue la probabilité de le choisir de [1 - DIVERSITY_COEF] 
+    DIVERSITY_COEF = 0.4 # Si l'edt en conception est similaire à plus de [DIVERSITY_COEF] % des edt déjà créés, on diminue la probabilité de le choisir de [ * DIVERSITY_COEF] 
     """Diminution d'une probabilité en fonction du nombre de fois qu'elle a été choisie, 0 = pas de diminution, 1 = diminution maximale"""
 
     PHEROMONE_FUNC = 'mean'
@@ -167,8 +181,8 @@ class EDT_GENERATOR:
     RELEARNING = False
     """Change le comportement d'apprentissage, afin de pouvoir sortir d'une impasse"""
 
-    LOW_GRANULARITY_SCORE_COEF = 1.5
-    """Multiplicateur de la variation de score lors de la pose d'un bloque à petite granularité"""
+    LOW_GRANULARITY_SCORE_BONUS = 1.5
+    """Bonus de score données pour les scores calculé à l'aide de variations faibles granularités"""
 
     LEARNING_TABLE_LOCK = None
 
@@ -179,26 +193,19 @@ class EDT_GENERATOR:
 
     @classmethod
     async def update_learning_table(cls, key, value):
-        async with cls.LEARNING_TABLE_LOCK:
-            if key in cls.LEARNING_TABLE: cls.LEARNING_TABLE[key].append(value)
-                # Si la valeur moyenne est inférieure à la valeur actuelle, on l'ajoute à la liste
-                # avg = sum(cls.LEARNING_TABLE[key]) / len(cls.LEARNING_TABLE[key]) 
-                # if avg < value:
-                #     cls.LEARNING_TABLE[key].append(value)
+        async with cls.LEARNING_TABLE_LOCK:            
+            # Si la valeur moyenne est inférieure à la valeur actuelle, on l'ajoute à la liste
+            cls.LEARNING_TABLE[key].append(value)
 
-                    # Retirer les valeurs trop faibles
-                    # avg = sum(cls.LEARNING_TABLE[key]) / len(cls.LEARNING_TABLE[key])
-                    # cls.LEARNING_TABLE[key] = [val for val in cls.LEARNING_TABLE[key] if val >= avg]
-            else:
-                cls.LEARNING_TABLE[key] = [value]
+                # Retirer les valeurs trop faibles
+                # avg = sum(cls.LEARNING_TABLE[key]) / len(cls.LEARNING_TABLE[key])
+                # cls.LEARNING_TABLE[key] = [val for val in cls.LEARNING_TABLE[key] if val >= avg]
 
     @classmethod
     async def update_learning_table_list(cls, list_of_key, value):
         async with cls.LEARNING_TABLE_LOCK:
             for key in list_of_key:
-                if key in cls.LEARNING_TABLE: cls.LEARNING_TABLE[key].append(value)
-                else:
-                    cls.LEARNING_TABLE[key] = [value]
+                cls.LEARNING_TABLE: cls.LEARNING_TABLE[key].append(value)
 
     @classmethod
     async def update_created_edt(cls, key):
@@ -210,7 +217,7 @@ class EDT_GENERATOR:
 
     @staticmethod
     def init():
-        EDT_GENERATOR.LEARNING_TABLE = {}
+        EDT_GENERATOR.LEARNING_TABLE = defaultdict(list)
         EDT_GENERATOR.CREATED_EDT = {}
         EDT_GENERATOR.LEARNING_TABLE_LOCK = asyncio.Lock()
         EDT_GENERATOR.CREATED_EDT_LOCK = asyncio.Lock()
@@ -275,9 +282,9 @@ class EDT_GENERATOR:
                 
                 elif nb_same_best_score == 5:
                     # Explorer d'autres possibilités
-                    EDT_GENERATOR.PHEROMONE_FUNC = 'min'
                     EDT_GENERATOR.PARAM_SAVE['DIVERSITY_COEF'] = EDT_GENERATOR.DIVERSITY_COEF
-                    EDT_GENERATOR.DIVERSITY_COEF = 1
+                    EDT_GENERATOR.DIVERSITY_COEF = 0.1
+                    EDT_GENERATOR.RELEARNING = True
                     print('  |_Relearning')
 
 
@@ -332,13 +339,18 @@ class EDT_GENERATOR:
     
         if pheromone_func is None:
             pheromone_func = EDT_GENERATOR.PHEROMONE_FUNC
+
+        if pheromone_func != 'better':
+            scores = [float(score) for score in EDT_GENERATOR.LEARNING_TABLE[node]]
+        else:
+            return max([score for score in EDT_GENERATOR.LEARNING_TABLE[node] if type(score) == float])
         
         if pheromone_func == 'mean':
-            moy = sum(EDT_GENERATOR.LEARNING_TABLE[node]) / len(EDT_GENERATOR.LEARNING_TABLE[node])
+            moy = sum(scores) / len(scores)
         elif pheromone_func == 'max':
-            moy = max(EDT_GENERATOR.LEARNING_TABLE[node])
+            moy = max(scores)
         elif pheromone_func == 'min':
-            moy = min(EDT_GENERATOR.LEARNING_TABLE[node])
+            moy = min(scores)
         else:
             raise Exception("PHEROMONE_FUNC doit être 'mean', 'max' ou 'min'")
         return moy

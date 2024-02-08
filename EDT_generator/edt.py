@@ -5,6 +5,7 @@ from EDT_generator.cours import Cours
 class EDT:
     SAMEDI_MALUS = 10
     MIDI_BONUS = 5
+    MIDI_MALUS = 10
 
     # Listes des slots possibles par jour pour les cours ainsi que les dégats sur les autres cours
     COURSE_DAMAGES = [
@@ -297,9 +298,10 @@ class EDT:
 
         cours_midi = len([course for course in self.placed_cours if course.name.startswith('Midi')])
         total_cours_midi = sum([1 for course in self.COURS if course.name.startswith('Midi')])
-        malus_midi = EDT.MIDI_BONUS * (cours_midi / (total_cours_midi or 1))
+        bonus_midi = EDT.MIDI_BONUS * (cours_midi / (total_cours_midi or 1))
+        malus_midi = EDT.MIDI_MALUS * (cours_midi - total_cours_midi)
 
-        return  (4.5 * score_nb_heure + 4 * score_gap_edt + 2 * score_gap_prof) / 10.5 - malus_samedi + malus_midi
+        return  (4.5 * score_nb_heure + 4 * score_gap_edt + 2 * score_gap_prof) / 10.5 - malus_samedi + bonus_midi - malus_midi
 
     def __repr__(self) -> str:
         return "\n".join([str(day) for day in self.week])
