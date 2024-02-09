@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
-    data = db.run("SELECT * FROM Ressource").fetch()
+    data = db.run("SELECT IdRessource as id, Libelle as libelle, Nom as nom FROM Ressource").fetch()
     db.close()
     return JsonResponse(data, safe=False)
 

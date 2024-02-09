@@ -34,10 +34,9 @@ def get_all_professors(request):
 def get_all_students(request):
     db = Database.get()
     data = db.run("""
-    SELECT IdUtilisateur, Prenom, Nom, Email, IdRole, IdGroupe 
+    SELECT IdUtilisateur as id, Prenom as prenom, Nom as nom, Email as email, IdGroupe as idGroupe
         FROM Utilisateur
-        LEFT JOIN RoleUtilisateur
-        ON RoleUtilisateur.IdRoleUtilisateur = Utilisateur.IdRole
+        LEFT JOIN RoleUtilisateur ON RoleUtilisateur.IdRoleUtilisateur = Utilisateur.IdRole
         WHERE RoleUtilisateur.Label = 'Etudiant'
         """).fetch()
     db.close()

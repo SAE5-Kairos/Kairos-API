@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import jwt
 import bcrypt
+import datetime
 
 SECRET = "jesuislaphraseextremementsecretedelamortquituenormalementpersonneestsenseletrouvemaisbononsaitjamais"
 
@@ -26,11 +27,12 @@ def Login(request):
     global SECRET
     db = Database.get()
     sql = """
-            SELECT U.Prenom as prenom, U.Nom as nom, U.Email as email, R.Label as status, U.MotDePasse as mdp
-            FROM Utilisateur as U
-            RIGHT JOIN RoleUtilisateur as R ON U.IdRole = R.IdRoleUtilisateur
-            WHERE email = %s
-            """
+        SELECT U.Prenom AS prenom, U.Nom AS nom, U.Email AS email, R.Label AS status, U.MotDePasse AS mdp, G.Nom AS groupe
+        FROM Utilisateur U
+        LEFT JOIN RoleUtilisateur R ON U.IdRole = R.IdRoleUtilisateur
+        LEFT JOIN Groupe G ON U.IdGroupe = G.IdGroupe
+        WHERE U.Email = %s
+        """
     
     # Récupération des données
     body_unicode = request.body.decode('utf-8')
@@ -54,7 +56,8 @@ def Login(request):
       "nom": data['nom'],
       "email": data['email'],
       "status": data['status'],
-      "exp": 10800
+      "groupe": data['groupe'],
+      "exp": int((datetime.datetime.now() + datetime.timedelta(hours=3)).timestamp())
     }
 
     # Renvoie du token
