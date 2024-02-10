@@ -84,10 +84,17 @@ def by_id(request, code: int):
         FROM Banque 
         WHERE Banque.IdUtilisateur = %s;
             """
+        
+        sql_enseigne = """
+        DELETE
+        FROM Enseigne
+        WHERE Enseigne.IdUtilisateur = %s;
+            """
 
         db.run([sql_indisponibilite, (code,)]).fetch(rowcount=True)
         db.run([sql_cours, (code,)]).fetch(rowcount=True)
         db.run([sql_banque, (code,)]).fetch(rowcount=True)
+        db.run([sql_enseigne, (code,)]).fetch(rowcount=True)
         nb_row_affected = db.run([sql_utilisateur, (code,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
@@ -95,7 +102,6 @@ def by_id(request, code: int):
         prenom = ""
         nom = ""
         email = ""
-        mot_de_passe = ""
         id_role = ""
         id_groupe = ""
         try:
@@ -104,9 +110,8 @@ def by_id(request, code: int):
             prenom = body['prenom']
             nom = body['nom']
             email = body['email']
-            mot_de_passe = body['mot_de_passe']
             id_role = body['id_role']
-            id_groupe = body['id_groupe']
+            id_groupe = str(body['id_groupe']) if 'id_groupe' in body else None
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -116,12 +121,11 @@ def by_id(request, code: int):
                     SET Utilisateur.Prenom = %s,
                         Utilisateur.Nom = %s,
                         Utilisateur.Email = %s,
-                        Utilisateur.MotDePasse = %s,
                         Utilisateur.IdRole = %s,
                         Utilisateur.IdGroupe = %s
                     WHERE Utilisateur.IdUtilisateur = %s
                 """
-        nb_row_affected = db.run([sql, (prenom, nom, email, mot_de_passe, id_role, id_groupe, code)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (prenom, nom, email, id_role, id_groupe, code)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
 
@@ -165,10 +169,11 @@ def add(request):
 def get_ressourcesByUser(request, code:int):
     db = Database.get()
     sql = """
-        SELECT DISTINCT Ressource.IdRessource as id_ressource, Ressource.Libelle as libelle, Ressource.Nom as nom
-        FROM Banque
-        LEFT JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
-        WHERE Banque.IdUtilisateur = %s 
+        SELECT DISTINCT R.IdRessource as id_ressource, R.Libelle as libelle, R.Nom as nom
+        FROM Enseigne as E
+        RIGHT JOIN Ressource as R ON E.IdRessource = R.IdRessource
+        RIGHT JOIN Utilisateur as U ON E.IdUtilisateur = U.IdUtilisateur
+        WHERE Enseigne.IdUtilisateur = %s 
     """
     data = db.run([sql, (code,)]).fetch()
     db.close()
@@ -179,11 +184,12 @@ def get_ressourcesByUser(request, code:int):
 @method_awaited("GET")
 def get_ressourcesAllUsers(request):
     db = Database.get()
-    data = db.run("""
+    data = db.run("""                  
         SELECT DISTINCT U.IdUtilisateur as id_enseignant, U.Prenom as prenom, U.Nom as nomUser, U.Email as email, R.IdRessource as id_ressource, R.Libelle as libelle, R.Nom as nomRes
-        FROM Banque as B
-        LEFT JOIN Ressource as R ON B.IdRessource = R.IdRessource
-        LEFT JOIN Utilisateur as U ON B.IdUtilisateur = U.IdUtilisateur
+        FROM Enseigne as E
+        RIGHT JOIN Ressource as R ON E.IdRessource = R.IdRessource
+        RIGHT JOIN Utilisateur as U ON E.IdUtilisateur = U.IdUtilisateur
+        WHERE U.IdRole = 3
     """).fetch()
     db.close()
 
@@ -197,7 +203,7 @@ def get_ressourcesAllUsers(request):
             "email": row['email'],
             "ressources": [
                 {
-                    "id_ressource": row['id_ressource'],
+                    "id": row['id_ressource'],
                     "libelle": row['libelle'],
                     "nom": row['nomRes']
                 }
@@ -212,5 +218,9 @@ def get_ressourcesAllUsers(request):
         
         if not alreadyExist:
             newData.append(rowJson)
+
+    # Suppression des ressources "null" dans les enseignants
+    for enseignant in newData:
+        enseignant['ressources'] = [ressource for ressource in enseignant['ressources'] if ressource['id'] is not None]
 
     return JsonResponse(newData, safe=False)

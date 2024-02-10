@@ -17,7 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from API_views import views_generator, views_salles, views_utilisateurs, views_indisponibilite, views_ressource, \
-    views_cours, views_groupe, views_EDT, views_banque, views_type_cours, views_couleur, views_authentification
+    views_cours, views_groupe, views_EDT, views_banque, views_type_cours, views_couleur, views_authentification, \
+    views_enseigne
 from . import views
 
 urlpatterns = [
@@ -29,6 +30,9 @@ urlpatterns = [
     path('api/login/', views_authentification.Login),
     path('api/register/', views_authentification.Register),
     path('api/reset_password/', views_authentification.ResetPassword),
+
+    # Enseigne
+    path('api/add-enseignes/', views_enseigne.add_enseigne),
 
     # Salles
     path('api/salles/', views_salles.get_all),

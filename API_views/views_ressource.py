@@ -66,10 +66,17 @@ def by_id(request, code: int):
         FROM Ressource 
         WHERE Ressource.IdRessource = %s;
             """
+        
+        sql_enseigne = """
+        DELETE
+        FROM Enseigne
+        WHERE Enseigne.IdRessource = %s;
+            """
 
         db.run([sql_quota, (code,)]).fetch()
         db.run([sql_cours, (code,)]).fetch()
         db.run([sql_banque, (code,)]).fetch()
+        db.run([sql_enseigne, (code,)]).fetch()
         nb_row_affected = db.run([sql_ressource, (code,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
