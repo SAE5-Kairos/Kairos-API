@@ -73,12 +73,14 @@ def Register(request):
     sqlCompteExist = """ SELECT Email FROM Utilisateur WHERE Email = %s """
     sql = """ INSERT INTO Utilisateur (Prenom, Nom, Email, IdRole, MotDePasse, IdGroupe) VALUES (%s, %s, %s, %s, %s, %s) """
     
+    # Récupération des données obligatoires pour la création d'un utilisateur
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
-    prenom = body['prenom']
-    nom = body['nom']
+    prenom = body['prenom'][0].upper() + body['prenom'][1::].lower()
+    nom = body['nom'][0].upper() + body['nom'][1::].lower()
     email = body['email']
     idRole = str(body['idRole'])
+    idGroupe = str(body['idGroupe']) if 'idGroupe' in body else None
 
     # Vérification de l'existence du compte
     dataCompteExist = db.run([sqlCompteExist, (email,)]).fetch()
@@ -89,7 +91,24 @@ def Register(request):
     tempNewMdp = prenom[0].upper() + prenom[1::].lower() + "." + nom[0].upper() + nom[1::].lower() 
     tempNewMdp = hash_password(tempNewMdp)
 
-    nb_row_affected = db.run([sql, (prenom, nom, email, idRole, tempNewMdp, None)]).fetch(rowcount=True)
+    nb_row_affected = db.run([sql, (prenom, nom, email, idRole, tempNewMdp, idGroupe)]).fetch(rowcount=True)
+
+    # Si l'utilisateur est un enseignant, ajout des ressources enseignées
+    if idRole == "3" and 'idRessources' in body:
+        sqlIdUser = """ SELECT IdUtilisateur as ID FROM Utilisateur WHERE Email = %s """
+        dataIdUser = db.run([sqlIdUser, (email,)]).fetch()
+        idUser = dataIdUser[0]['ID']
+
+        # Ajout des ressources enseignées avec formatage 
+        idRessources = body['idRessources']
+        tempFormatValue = []
+        for idRessource in idRessources:
+            tempFormatValue.append((idUser, idRessource))
+        
+        sqlRessources = "INSERT INTO Enseigne (IdUtilisateur, IdRessource) VALUES " + ",".join(["%s"] * len(tempFormatValue))
+        nb_row_affected_enseigne = db.run([sqlRessources, tempFormatValue]).fetch(rowcount=True)
+        db.close()
+        return JsonResponse(nb_row_affected == 1 and nb_row_affected_enseigne == len(idRessources), safe=False)
 
     db.close()
     return JsonResponse(nb_row_affected == 1, safe=False)

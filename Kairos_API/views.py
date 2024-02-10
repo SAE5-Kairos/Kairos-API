@@ -9,6 +9,8 @@ def home(request):
         {"path": "register/", "POST": "{'prenom': string, 'nom': string, 'email': string, 'mot_de_passe': string, 'id_role': int}"},
         {"path": "reset_password/", "POST": "{'email': string, 'ancien_mdp': string, 'nouveau_mdp': string}"},
 
+        {"path": "enseignes/", "POST": "{'idUtilisateur': int, 'idRessources': [int]}"},
+
         {"path": "salles/", "GET": ""},
         {"path": "salle/<int:code>/", "GET": ""},
         {"path": "salle/<int:code>/", "PUT": "{'nom': string}"},
