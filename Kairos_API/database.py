@@ -1,27 +1,44 @@
-import pymysql, Kairos_API.conn as conn
+import time
+import pymysql, mariadb, Kairos_API.conn as conn
 
 class Database:
 
-    def __init__(self, host, user, password, database, port) -> None:
+    def __init__(self, host, user, password, database, port, driver=None) -> None:
         self.host = host
         self.user = user
         self.password = password
         self.database = database
         self.port = port
+        self.driver = driver
 
+        self.cnx = None
         self.cursor = None
 
     def __str__(self):
         return self.host
     
     def connect(self):
-        self.cnx = pymysql.connect(user=self.user, database=self.database, password=self.password, host=self.host,
-                                    port=int(self.port), autocommit=True)
+        while self.cnx is None:
+            try:
+                if self.driver == 'mariadb':
+                    self.cnx = mariadb.connect(user=self.user, database=self.database, password=self.password, host=self.host,
+                                            port=int(self.port), autocommit=True)
+                else:
+                    self.cnx = pymysql.connect(user=self.user, database=self.database, password=self.password, host=self.host,
+                                            port=int(self.port), autocommit=True)
+            except Exception as e:
+                print(e)
+                print(f"Impossible de se connecter à la base de données {self.database} sur {self.host}:{self.port} avec l'utilisateur {self.user}.")
+                print("Réessai dans 5 secondes...")
+                time.sleep(3)
         self.cursor = self.cnx.cursor()
     
     @staticmethod
-    def get():
-        database = Database(conn.HOST, conn.USER, conn.PWD, conn.DB, conn.PORT)
+    def get(name=None):
+        if name is None:
+            database = Database(conn.HOST, conn.USER, conn.PWD, conn.DB, conn.PORT)
+        elif name == "edt_generator":
+            database = Database(host='db', user='root', password='root', database='db_edt_generator', port=3306, driver='mariadb')
         database.connect()
         return database
     
@@ -92,3 +109,38 @@ class Database:
             self.cnx.commit()
             self.cnx.close()
 
+            self.cnx = None
+
+
+# Initialisation de la db de génération d'emploi du temps
+db_edt_generator = Database.get("edt_generator")
+sql = """
+    DROP TABLE IF EXISTS COURS;
+"""
+db_edt_generator.run(sql)
+
+sql = """
+    DROP TABLE IF EXISTS PHEROMONES;
+"""
+db_edt_generator.run(sql)
+
+sql = """
+CREATE TABLE IF NOT EXISTS COURS (
+    ID INT AUTO_INCREMENT PRIMARY KEY,
+    COURS VARCHAR(10),
+    JOUR INT,
+    DEBUT INT,
+    INDEX idx_cours (COURS, JOUR, DEBUT)
+);
+"""
+db_edt_generator.run(sql)
+
+sql = """
+CREATE TABLE IF NOT EXISTS PHEROMONES (
+    ID_COURS INT,
+    PHEROMONE FLOAT,
+    BOOSTED TINYINT,
+    INDEX idx_pheromones (ID_COURS)
+);
+"""
+db_edt_generator.run(sql)

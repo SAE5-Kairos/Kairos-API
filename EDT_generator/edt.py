@@ -28,7 +28,7 @@ class EDT:
     ]
 
     def __init__(self):
-        self.placed_cours:list(Cours) = []
+        self.placed_cours:list[Cours] = []
         self.day_index = 0
         self.tree_index = 0
         self.final = False
