@@ -1,4 +1,5 @@
 import random, asyncio, datetime, gc
+from Kairos_API.database import Database
 from EDT_generator.edt import EDT
 from EDT_generator.cours import Cours
 from collections import defaultdict
@@ -15,7 +16,7 @@ class Ant:
         
         self.CPY_CREATED_EDT = EDT_GENERATOR.CREATED_EDT.copy()
 
-    def choose_next_node(self, get_better=False):
+    def choose_next_node(self, db:Database):
         """
             Node: (cours.name, cours.jour, cours.debut)
 
@@ -27,7 +28,7 @@ class Ant:
         """
         
         # On récupère les cours disponibles
-        available_courses:list(Cours) = [course for course in self.edt.COURS if course not in self.edt.placed_cours]
+        available_courses:list[Cours] = [course for course in self.edt.COURS if course not in self.edt.placed_cours]
         if not available_courses: return None
 
         P = {} # Probabilité de choisir un cours, à un créneau en fonction des phéromones
@@ -47,25 +48,16 @@ class Ant:
                 for slot in day_slots:
                     for heure in slot["heures_index"]:
                         # On récupère la probabilité de choisir ce cours en fonction des phéromones
-                        P[(course.name, jour, heure)] = EDT_GENERATOR.get_pheromone_probability((course.name, jour, heure), 'better' if get_better else None)
+                        P[(course.name, jour, heure)] = EDT_GENERATOR.LEARNING_TABLE.get((course.name, jour, heure), 0)
 
                         # On récupère la probabilité de choisir ce cours en fonction de la visibilité
                         V[(course.name, jour, heure)] = EDT_GENERATOR.get_visibility_probability((course.name, jour, heure), course, self.edt)
 
-        if get_better:
-            better_node = max(P, key=lambda elmt: P[elmt])
-            print(P[better_node])
-            
-            if self.focused_score is None:
-                self.focused_score = P[better_node]
-                return better_node
-            
-            elif P[better_node] >= self.focused_score:
-                return better_node
-            
-            return None
-        
         if EDT_GENERATOR.RELEARNING:
+            if len(V) == 1:
+                return list(V.keys())[0]
+            if len(V) == 0:
+                return None
             return list(V.keys())[random.randint(0, len(V) - 1)]
 
         max_V = max(V.values()) if V else 0
@@ -97,12 +89,14 @@ class Ant:
             same_signature_calculed = True
 
             # On calcule le facteur de diversité
-            if total_nb_edt_with_same_signature != 0 and times_furtur_signature * (1 + EDT_GENERATOR.DIVERSITY_COEF) > total_nb_edt_with_same_signature and not get_better:
+            if total_nb_edt_with_same_signature != 0 and times_furtur_signature * (1 + EDT_GENERATOR.DIVERSITY_COEF) > total_nb_edt_with_same_signature:
                 diversity_factor = EDT_GENERATOR.DIVERSITY_COEF
             else:
                 diversity_factor = 1
 
-            node_probabilities[node] = (self.dP * P[node] * EDT_GENERATOR.PHEROMONE_BOOST + self.dV * V[node]) * diversity_factor
+            pheromone_score = self.dP * P[node] * EDT_GENERATOR.PHEROMONE_BOOST 
+            visibility_score = self.dV * V[node]
+            node_probabilities[node] = (pheromone_score + visibility_score) * diversity_factor
 
         if not node_probabilities: return None
         
@@ -118,8 +112,27 @@ class Ant:
     
         return None
 
-    async def visit(self, get_better=False):
-        node = self.choose_next_node(get_better=get_better)
+    async def visit(self, db:Database):
+        node = self.choose_next_node(db=db)
+
+        sql = """
+            SELECT AVG(p.PHEROMONE) as p
+            FROM PHEROMONES p
+                    JOIN COURS c ON p.ID_COURS = c.ID
+            WHERE c.COURS = %s AND c.JOUR = %s AND c.DEBUT = %s
+        """
+
+        sql_insert_p = """
+            INSERT INTO PHEROMONES (ID_COURS, PHEROMONE, BOOSTED) VALUES (%s, %s, 1)
+        """
+
+        sql_insert_cours = """
+            INSERT INTO COURS (COURS, JOUR, DEBUT) VALUES (%s, %s, %s)
+        """
+
+        sql_select = """
+            SELECT ID FROM COURS WHERE COURS = %s AND JOUR = %s AND DEBUT = %s
+        """
         while node is not None:
             before_score = self.edt.get_score()
 
@@ -128,14 +141,15 @@ class Ant:
             self.edt.place_cours(cours, self.node_history[-1][1], self.node_history[-1][2])
 
             # On calcule le score après avoir placé le cours et on l'ajoute à la liste des phéromones
-            if node in EDT_GENERATOR.LEARNING_TABLE:
-                variation_score = self.edt.get_score() - before_score
-                
-                scores = [float(score) for score in EDT_GENERATOR.LEARNING_TABLE[node]]
-                moy_score = sum(scores) / len(scores)
-
-                score = str(moy_score + variation_score)
-                await EDT_GENERATOR.update_learning_table(node, score)
+            # Prends un peu de temps, est ce vraiment utile 0.005 par cours placé * nb fourmis * nb itérations
+            variation_score = self.edt.get_score() - before_score
+            moy_score = db.run([sql, (node[0], node[1], node[2])]).fetch(first=True)['p'] or 0
+            score = str(moy_score + variation_score)
+            if moy_score == 0:
+                db.run([sql_insert_cours, (node[0], node[1], node[2])])
+                cours = db.last_id()
+            else:
+                cours = db.run([sql_select, (node[0], node[1], node[2])]).fetch(first=True)['ID']
 
             # Update CREATED_EDT (pour la diversité) selon la signature de l'EDT
             # On cherche a limiter la taille du dico des possibilités pour ne pas faire exploser la mémoire et le temps d'execution
@@ -144,7 +158,14 @@ class Ant:
                 if not other_signature.startswith(signature):
                     del self.CPY_CREATED_EDT[other_signature]
         
-            node = self.choose_next_node(get_better=get_better)
+            node = self.choose_next_node(db=db)
+
+        # Vérifier si l'EDT est meilleur que le meilleur EDT
+        score = self.edt.get_score()
+        if score > EDT_GENERATOR.BETTER_EDT_SCORE:
+            async with EDT_GENERATOR.BETTER_EDT_LOCK:
+                EDT_GENERATOR.BETTER_EDT_SCORE = score
+                EDT_GENERATOR.BETTER_EDT = self.edt
 
         return self
 
@@ -191,6 +212,13 @@ class EDT_GENERATOR:
 
     CREATED_EDT_LOCK = None
 
+    BETTER_EDT_SCORE = 0
+    """Meilleur score d'EDT"""
+
+    BETTER_EDT:EDT = None
+
+    BETTER_EDT_LOCK = None
+
     @classmethod
     async def update_learning_table(cls, key, value):
         async with cls.LEARNING_TABLE_LOCK:            
@@ -203,9 +231,17 @@ class EDT_GENERATOR:
 
     @classmethod
     async def update_learning_table_list(cls, list_of_key, value):
-        async with cls.LEARNING_TABLE_LOCK:
-            for key in list_of_key:
-                cls.LEARNING_TABLE: cls.LEARNING_TABLE[key].append(value)
+        sql_insert = """
+            INSERT INTO PHEROMONES (COURS, PHEROMONE) VALUES (%s, %s)
+        """
+        sql_select = """
+            SELECT ID FROM COURS WHERE COURS = %s AND JOUR = %s AND DEBUT = %s
+        """
+
+        db = Database.get("edt_generator")
+        for key in list_of_key:
+            COURS = db.run([sql_select, (key[0], key[1], key[2])]).fetch(first=True)['ID']
+            db.run([sql_insert, (COURS, value)])
 
     @classmethod
     async def update_created_edt(cls, key):
@@ -220,57 +256,136 @@ class EDT_GENERATOR:
         EDT_GENERATOR.LEARNING_TABLE = defaultdict(list)
         EDT_GENERATOR.CREATED_EDT = {}
         EDT_GENERATOR.LEARNING_TABLE_LOCK = asyncio.Lock()
+        EDT_GENERATOR.BETTER_EDT_LOCK = asyncio.Lock()
         EDT_GENERATOR.CREATED_EDT_LOCK = asyncio.Lock()
+        EDT_GENERATOR.BETTER_EDT_SCORE = 0
+        EDT_GENERATOR.BETTER_EDT = None
+
+        # Vider les données en base de la dernière génération
+        db = Database.get("edt_generator")
+        sql = """
+            DELETE FROM PHEROMONES
+        """
+        db.run(sql)
+        sql = """
+            DELETE FROM COURS
+        """
+        db.run(sql)
+        db.close()
 
     @staticmethod
     async def generate_edts(nb_ants=50, nb_iterations=1):
         EDT_GENERATOR.init()
         EDT.set_course_probability()
+        db = Database.get("edt_generator")
         
         EDT_GENERATOR.PARAM_SAVE['PHEROMONE_FUNC'] = EDT_GENERATOR.PHEROMONE_FUNC
-        batch_size = 10
+        batch_size = 6 # Décroissant sur le temps; taille du premier batch
 
         last_best_score = 0
         nb_same_best_score = 0
         for iteration in range(nb_iterations):
             print(f"\nITERATION {iteration + 1}/{nb_iterations}")
-            debut = datetime.datetime.now()
+            f = open('log.txt', 'a')
+            f.write(f"\nITERATION {iteration + 1}/{nb_iterations}\n")
+            debut_g = datetime.datetime.now()
             dV = (nb_iterations - iteration) / nb_iterations - 0.05
             dP = (iteration + 1) / nb_iterations
             dP *= 2
             dV *= 2
             print(f"  |_dP={dP}, dV={dV}")
-            
-            all_ants = [[Ant(dP=dP, dV=dV) for _ in range(batch_size)] for _ in range(nb_ants // batch_size)]
-            if nb_ants % batch_size != 0:
-                all_ants.append([Ant(dP=dP, dV=dV) for _ in range(nb_ants % batch_size)])
+            f.write(f"  |_dP={dP}, dV={dV}\n")
+            f.close()
 
+            nb_ants_current = nb_ants
+            nb_decrease = batch_size
+            decrease_factor:int = 1
+
+            # Créer les fourmis
+            all_ants = []
+            while nb_ants_current > 0:
+                if nb_ants_current - nb_decrease < 0:
+                    nb_decrease = nb_ants_current
+                
+                all_ants.append([Ant(dP=dP, dV=dV) for _ in range(nb_decrease)])
+
+                nb_ants_current -= nb_decrease
+                if nb_decrease > 1 + decrease_factor:
+                    nb_decrease -= decrease_factor
+
+            # Initialiser les données de phéromones
+            sql = """
+                SELECT c.COURS, c.JOUR, c.DEBUT, AVG(p.PHEROMONE) as p
+                FROM PHEROMONES p
+                    JOIN COURS c ON p.ID_COURS = c.ID
+                GROUP BY c.COURS, c.JOUR, c.DEBUT
+            """
+            
+            if EDT_GENERATOR.PHEROMONE_FUNC == 'mean':
+                sql = """
+                    SELECT c.COURS, c.JOUR, c.DEBUT, AVG(p.PHEROMONE) as p
+                    FROM PHEROMONES p
+                            JOIN COURS c ON p.ID_COURS = c.ID
+                    WHERE c.COURS IS NOT NULL AND c.JOUR IS NOT NULL AND c.DEBUT IS NOT NULL
+                    GROUP BY c.COURS, c.JOUR, c.DEBUT
+                """
+            elif EDT_GENERATOR.PHEROMONE_FUNC == 'max':
+                sql = """
+                    SELECT c.COURS, c.JOUR, c.DEBUT, MAX(p.PHEROMONE) as p
+                    FROM PHEROMONES p
+                            JOIN COURS c ON p.ID_COURS = c.ID
+                    WHERE c.COURS IS NOT NULL AND c.JOUR IS NOT NULL AND c.DEBUT IS NOT NULL
+                    GROUP BY c.COURS, c.JOUR, c.DEBUT
+                """
+            elif EDT_GENERATOR.PHEROMONE_FUNC == 'min':
+                sql = """
+                    SELECT c.COURS, c.JOUR, c.DEBUT, MIN(p.PHEROMONE) as p
+                    FROM PHEROMONES p
+                            JOIN COURS c ON p.ID_COURS = c.ID
+                    WHERE c.COURS IS NOT NULL AND c.JOUR IS NOT NULL AND c.DEBUT IS NOT NULL
+                    GROUP BY c.COURS, c.JOUR, c.DEBUT
+                """
+            pheromones = db.run(sql).fetch()
+            EDT_GENERATOR.LEARNING_TABLE = {(course['COURS'], course['JOUR'], course['DEBUT']): (course['p'] or 0) for course in pheromones}
+            
+            # Générer les EDTs
             loop = asyncio.get_event_loop()
             tasks = [loop.create_task(EDT_GENERATOR.visit_batch_of_ants(ants)) for ants in all_ants]
             Ants = await asyncio.gather(*tasks)
             
             # Learning
-            node_to_scores = {}
+            sql_insert = """
+                INSERT INTO PHEROMONES (ID_COURS, PHEROMONE, BOOSTED) VALUES (%s, %s, 0)
+            """
+            sql_select = """
+                SELECT ID FROM COURS WHERE COURS = %s AND JOUR = %s AND DEBUT = %s
+            """
+
+            sql_insert_cours = """
+                INSERT INTO COURS (COURS, JOUR, DEBUT) VALUES (%s, %s, %s)
+            """
+            nb_ants = 0
             for ants_list in all_ants:
                 for ant in ants_list:
+                    nb_ants += 1
                     score = ant.edt.get_score()
                     for node in ant.node_history:
-                        if node in node_to_scores:
-                            node_to_scores[node].append(score)
-                        else: node_to_scores[node] = [score]
+                        cours = db.run([sql_select, (node[0], node[1], node[2])]).fetch(first=True)
+                        if cours:
+                            db.run([sql_insert, (cours['ID'], score)])
+                        else:
+                            db.run([sql_insert_cours, (node[0], node[1], node[2])])
+                            cours = db.last_id()
+                            db.run([sql_insert, (cours, score)])
 
-            for node in node_to_scores:
-                if node in EDT_GENERATOR.LEARNING_TABLE:
-                    EDT_GENERATOR.LEARNING_TABLE[node].extend(node_to_scores[node])
-                else: EDT_GENERATOR.LEARNING_TABLE[node] = node_to_scores[node].copy()
+            f = open('log.txt', 'a')
+            f.write(f"  |_Nombre de fourmis: {nb_ants}\n")
+            print("  |_Meilleur score:", EDT_GENERATOR.BETTER_EDT_SCORE)
+            f.write(f"  |_Meilleur score: {EDT_GENERATOR.BETTER_EDT_SCORE}\n")
+            print(f"  |_Temps d'execution: {datetime.datetime.now() - debut_g}")
+            f.write(f"  |_Temps d'execution: {datetime.datetime.now() - debut_g}\n")
+            f.close()
 
-            #batch_visit = [asyncio.create_task(EDT_GENERATOR.visit_batch_of_ants(ants=ants, dP=dP, dV=dV)) for ants in all_ants]
-            #Ants = await asyncio.gather(*batch_visit)
-            ant = Ant(1, 0)
-            ant = await ant.visit(get_better=True)
-            print("  |_Meilleur score:", ant.edt.get_score())
-            print(f"  |_Temps d'execution: {datetime.datetime.now() - debut}") 
-            
             if ant.edt.get_score() == last_best_score:
                 nb_same_best_score += 1
 
@@ -287,26 +402,6 @@ class EDT_GENERATOR:
                     EDT_GENERATOR.RELEARNING = True
                     print('  |_Relearning')
 
-
-                # elif nb_same_best_score == 3:
-                #     # Diminution de la diversité
-                #     EDT_GENERATOR.PARAM_SAVE['DIVERSITY_COEF'] = EDT_GENERATOR.DIVERSITY_COEF
-                #     EDT_GENERATOR.DIVERSITY_COEF = 0
-                #     print('  |_Start-Diversity-Decrease')
-
-                # elif nb_same_best_score == 5:
-                #     # Phase de relearning
-                #     EDT_GENERATOR.RELEARNING = True
-                #     EDT_GENERATOR.DIVERSITY_COEF = 0.6
-                #     EDT_GENERATOR.PHEROMONE_BOOST = 1
-                #     print('  |_Start-Relearning [Start-Diversity-increase, Stop-Pheromone-Boost]')
-
-                # elif nb_same_best_score == 7:
-                #     # Fin de la phase de relearning
-                #     EDT_GENERATOR.RELEARNING = False
-                #     EDT_GENERATOR.DIVERSITY_COEF = EDT_GENERATOR.PARAM_SAVE['DIVERSITY_COEF']
-                #     EDT_GENERATOR.PHEROMONE_BOOST = EDT_GENERATOR.PARAM_SAVE['PHEROMONE_BOOST']
-                #     print('  |_Stop-Relearning')
             else:
                 if nb_same_best_score == 3:
                     # Fin du renforcement de la phéromone
@@ -318,42 +413,55 @@ class EDT_GENERATOR:
                     EDT_GENERATOR.PHEROMONE_FUNC = EDT_GENERATOR.PARAM_SAVE['PHEROMONE_FUNC']
                     EDT_GENERATOR.DIVERSITY_COEF = EDT_GENERATOR.PARAM_SAVE['DIVERSITY_COEF']
                     print('  |_Stop-Diversity-Decrease AND Stop-Relearning')
-                # elif nb_same_best_score == 3:
-                #     # Fin de la diminution de la diversité
-                #     EDT_GENERATOR.DIVERSITY_COEF = EDT_GENERATOR.PARAM_SAVE['DIVERSITY_COEF']
-                #     del EDT_GENERATOR.PARAM_SAVE['DIVERSITY_COEF']
-                #     print('  |_Stop-Diversity-Decrease AND Stop-Pheromone-Boost')
 
                 nb_same_best_score = 0
                 last_best_score = ant.edt.get_score()
                 if EDT_GENERATOR.RELEARNING:
                     EDT_GENERATOR.RELEARNING = False
                     print('  |_Stop-Relearning')
-            
+
+        db.close()
         return Ants
 
     @staticmethod
-    def get_pheromone_probability(node, pheromone_func=None):
-        if (node not in EDT_GENERATOR.LEARNING_TABLE):
-            return 0
-    
+    def get_pheromone_probability(node, db:Database, pheromone_func=None):
         if pheromone_func is None:
             pheromone_func = EDT_GENERATOR.PHEROMONE_FUNC
 
-        if pheromone_func != 'better':
-            scores = [float(score) for score in EDT_GENERATOR.LEARNING_TABLE[node]]
-        else:
-            return max([score for score in EDT_GENERATOR.LEARNING_TABLE[node] if type(score) == float])
+        if pheromone_func == 'better':
+            sql = """
+                SELECT MAX(p.PHEROMONE) as p
+                FROM PHEROMONES p
+                     JOIN COURS c ON p.ID_COURS = c.ID
+                WHERE c.COURS = %s AND c.JOUR = %s AND c.DEBUT = %s AND BOOSTED = 0
+            """
+            return db.run([sql, (node[0], node[1], node[2])]).fetch(first=True)['p'] or 0
         
         if pheromone_func == 'mean':
-            moy = sum(scores) / len(scores)
+            sql = """
+                SELECT AVG(p.PHEROMONE) as p
+                FROM PHEROMONES p
+                     JOIN COURS c ON p.ID_COURS = c.ID
+                WHERE c.COURS = %s AND c.JOUR = %s AND c.DEBUT = %s
+            """
         elif pheromone_func == 'max':
-            moy = max(scores)
+            sql = """
+                SELECT MAX(p.PHEROMONE) as p
+                FROM PHEROMONES p
+                     JOIN COURS c ON p.ID_COURS = c.ID
+                WHERE c.COURS = %s AND c.JOUR = %s AND c.DEBUT = %s
+            """
         elif pheromone_func == 'min':
-            moy = min(scores)
+            sql = """
+                SELECT MIN(p.PHEROMONE) as p
+                FROM PHEROMONES p
+                     JOIN COURS c ON p.ID_COURS = c.ID
+                WHERE c.COURS = %s AND c.JOUR = %s AND c.DEBUT = %s
+            """
         else:
             raise Exception("PHEROMONE_FUNC doit être 'mean', 'max' ou 'min'")
-        return moy
+        
+        return db.run([sql, (node[0], node[1], node[2])]).fetch(first=True)['p'] or 0
     
     @staticmethod
     def get_visibility_probability(node, course, edt:EDT):
@@ -376,28 +484,25 @@ class EDT_GENERATOR:
 
     @staticmethod
     async def visit_batch_of_ants(ants, dP=0.5, dV=0.5):
+        db = Database.get("edt_generator")
         loop = asyncio.get_event_loop()
-        tasks = [loop.create_task(EDT_GENERATOR.run_ant2(ant)) for ant in ants]
+        tasks = [loop.create_task(EDT_GENERATOR.run_ant2(ant, db)) for ant in ants]
         await asyncio.gather(*tasks)
-
+        db.close()
         del tasks
         del loop
-        # for ant in ants:
-        #     ant.visit()
-            
-        #     score = ant.edt.get_score()
-        #     for node in ant.node_history:
-        #         # if node in EDT_GENERATOR.LEARNING_TABLE:
-        #         #     EDT_GENERATOR.LEARNING_TABLE[node].append(score)
-        #         # else:
-        #         #     EDT_GENERATOR.LEARNING_TABLE[node] = [score]
-        #         await EDT_GENERATOR.update_learning_table(node, score)
 
     @staticmethod
-    async def run_ant2(ant):
-        await ant.visit()
-        #await ant.learn()
+    async def run_ant2(ant, db:Database):
+        debut = datetime.datetime.now()
+        await ant.visit(db)
+        f = open('log.txt', 'a')
+        print(f"  |_Temps de visite: {datetime.datetime.now() - debut}")
+        f.write(f"  |_Temps de visite: {datetime.datetime.now() - debut}\n")
+        f.close()
+        debut = datetime.datetime.now()
         await EDT_GENERATOR.update_created_edt(ant.edt.get_signature())
-        # score = ant.edt.get_score()
-        # for node in ant.node_history:
-        #     await EDT_GENERATOR.update_learning_table(node, score)
+        f = open('log.txt', 'a')
+        print(f"  |_Temps de mise à jour des EDTs: {datetime.datetime.now() - debut}")
+        f.write(f"  |_Temps de mise à jour des EDTs: {datetime.datetime.now() - debut}\n")
+        f.close()

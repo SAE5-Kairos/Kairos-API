@@ -91,9 +91,9 @@ def generate_edt(request):
     async def edt_generator_async(): await EDT_GENERATOR.generate_edts(25, int(len(Cours.ALL) * 2))
     ants = asyncio.run(edt_generator_async())
     print("> Durée totale: " + str(datetime.datetime.now() - debut))
-
-    ant = Ant(1, 0)
-    ant = asyncio.run(ant.visit(get_better=True))
+    f = open('log.txt', 'a')
+    f.write('durée tot: ' + str(datetime.datetime.now() - debut) + '\n')
+    f.close()
 
     # Créer l'EDT:
     week_date = f'{body[0]["annee"]}-W{body[0]["semaine"]}'
@@ -110,7 +110,7 @@ def generate_edt(request):
     edt_id = db.last_id()
 
     # Stocker les cours en base
-    for course in Cours.ALL:
+    for course in EDT_GENERATOR.BETTER_EDT.placed_cours:
         if course.debut is not None:
             sql = """
                 INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe) 
@@ -122,4 +122,4 @@ def generate_edt(request):
             course.name = db.last_id()
     db.close()
 
-    return JsonResponse(ant.edt.jsonify(), safe=False)
+    return JsonResponse(EDT_GENERATOR.BETTER_EDT.jsonify(), safe=False)
