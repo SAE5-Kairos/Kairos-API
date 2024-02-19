@@ -261,6 +261,18 @@ class EDT_GENERATOR:
         EDT_GENERATOR.BETTER_EDT_SCORE = 0
         EDT_GENERATOR.BETTER_EDT = None
 
+        # Vider les données en base de la dernière génération
+        db = Database.get("edt_generator")
+        sql = """
+            DELETE FROM PHEROMONES
+        """
+        db.run(sql)
+        sql = """
+            DELETE FROM COURS
+        """
+        db.run(sql)
+        db.close()
+
     @staticmethod
     async def generate_edts(nb_ants=50, nb_iterations=1):
         EDT_GENERATOR.init()
@@ -268,7 +280,7 @@ class EDT_GENERATOR:
         db = Database.get("edt_generator")
         
         EDT_GENERATOR.PARAM_SAVE['PHEROMONE_FUNC'] = EDT_GENERATOR.PHEROMONE_FUNC
-        batch_size = 2 # il faudrait créer des batch de manière décroissante
+        batch_size = 6 # Décroissant sur le temps; taille du premier batch
 
         last_best_score = 0
         nb_same_best_score = 0
@@ -285,10 +297,21 @@ class EDT_GENERATOR:
             f.write(f"  |_dP={dP}, dV={dV}\n")
             f.close()
 
+            nb_ants_current = nb_ants
+            nb_decrease = batch_size
+            decrease_factor:int = 1
+
             # Créer les fourmis
-            all_ants = [[Ant(dP=dP, dV=dV) for _ in range(batch_size)] for _ in range(nb_ants // batch_size)]
-            if nb_ants % batch_size != 0:
-                all_ants.append([Ant(dP=dP, dV=dV) for _ in range(nb_ants % batch_size)])
+            all_ants = []
+            while nb_ants_current > 0:
+                if nb_ants_current - nb_decrease < 0:
+                    nb_decrease = nb_ants_current
+                
+                all_ants.append([Ant(dP=dP, dV=dV) for _ in range(nb_decrease)])
+
+                nb_ants_current -= nb_decrease
+                if nb_decrease > 1 + decrease_factor:
+                    nb_decrease -= decrease_factor
 
             # Initialiser les données de phéromones
             sql = """
@@ -341,8 +364,10 @@ class EDT_GENERATOR:
             sql_insert_cours = """
                 INSERT INTO COURS (COURS, JOUR, DEBUT) VALUES (%s, %s, %s)
             """
+            nb_ants = 0
             for ants_list in all_ants:
                 for ant in ants_list:
+                    nb_ants += 1
                     score = ant.edt.get_score()
                     for node in ant.node_history:
                         cours = db.run([sql_select, (node[0], node[1], node[2])]).fetch(first=True)
@@ -354,6 +379,7 @@ class EDT_GENERATOR:
                             db.run([sql_insert, (cours, score)])
 
             f = open('log.txt', 'a')
+            f.write(f"  |_Nombre de fourmis: {nb_ants}\n")
             print("  |_Meilleur score:", EDT_GENERATOR.BETTER_EDT_SCORE)
             f.write(f"  |_Meilleur score: {EDT_GENERATOR.BETTER_EDT_SCORE}\n")
             print(f"  |_Temps d'execution: {datetime.datetime.now() - debut_g}")
@@ -394,7 +420,7 @@ class EDT_GENERATOR:
                     EDT_GENERATOR.RELEARNING = False
                     print('  |_Stop-Relearning')
 
-        db.close() 
+        db.close()
         return Ants
 
     @staticmethod
