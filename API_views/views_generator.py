@@ -123,3 +123,44 @@ def generate_edt(request):
     db.close()
 
     return JsonResponse(EDT_GENERATOR.BETTER_EDT.jsonify(), safe=False)
+
+@csrf_exempt
+@method_awaited("GET")
+def get_prof_dispo(request, id_prof, semaine, annee):
+    db = Database.get()
+    sql = """
+        SELECT 
+            DateDebut, DateFin, 
+            WEEKDAY(DateDebut) AS JourDebut,
+            WEEKDAY(DateFin) AS JourFin
+        FROM 
+            Indisponibilite 
+        WHERE 
+            IdUtilisateur = %s 
+            AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
+            AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
+    """
+    data = db.run([sql, (id_prof, semaine, semaine, annee, annee)]).fetch()
+    db.close()
+
+    dispo = [[ 1 for _ in range(24)] for __ in range(6)]
+    for indispo in data:
+        if indispo["DateFin"].isocalendar().week > semaine: indispo['JourFin'] = 6
+
+        if indispo["DateDebut"].date() == indispo["DateFin"].date():
+            for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
+                dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
+
+        else:
+            # Si l'absence est sur la même semaine
+            if indispo["DateDebut"].isocalendar().week  == indispo["DateFin"].isocalendar().week:
+                for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
+                    dispo[day] = [ 0 for _ in range(24)]
+
+                for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
+                    dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
+
+            # Si le prof est abs toute la semaine
+            else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
+
+    return JsonResponse(dispo, safe=False)

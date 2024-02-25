@@ -3,7 +3,7 @@ import asyncio, random
 from EDT_generator.cours import Cours
 
 class EDT:
-    SAMEDI_MALUS = 10
+    SAMEDI_MALUS = 15
     MIDI_BONUS = 5
     MIDI_MALUS = 10
 

@@ -36,6 +36,7 @@ class Ant:
         V = {} # Probabilité de choisir un cours, à un créneau en fonction de la visibilité
         """(cours.name, cours.jour, cours.debut): probabilité)"""
 
+        debut = datetime.datetime.now()
         # Pour chacun des cours disponibles on va récupérer sa probabilité de choix (P et V)
         for course in available_courses:
             # On récupère les créneaux disponibles pour le professeur pour ce cours
@@ -53,6 +54,11 @@ class Ant:
                         # On récupère la probabilité de choisir ce cours en fonction de la visibilité
                         V[(course.name, jour, heure)] = EDT_GENERATOR.get_visibility_probability((course.name, jour, heure), course, self.edt)
 
+        print(f"  |_Temps de récupération des probabilités: {datetime.datetime.now() - debut}")
+        f = open('log.txt', 'a')
+        f.write(f"  |_Temps de récupération des probabilités: {datetime.datetime.now() - debut}\n")
+        f.close()
+
         if EDT_GENERATOR.RELEARNING:
             if len(V) == 1:
                 return list(V.keys())[0]
@@ -66,13 +72,15 @@ class Ant:
                 V[node] = (max_V - V[node]) * 100 / max_V
         node_probabilities = {}
 
+        debut = datetime.datetime.now()
         signature = self.edt.get_signature() # On récupère la signature de l'EDT actuel
         total_nb_edt_with_same_signature = 0
         nb_other_signature = 0
         same_signature_calculed = False
         
+        # lent, à optimiser
         # On calcule la probabilité de choisir un cours en fonction de la phéromone et de la visibilité
-        for node in P:
+        for node in V:
             furtur_signature = signature + f"{node[0]}-{node[1]}-{node[2]}/" # On calcule la signature de l'EDT si on place le cours
             times_furtur_signature = 0
             
@@ -97,6 +105,13 @@ class Ant:
             pheromone_score = self.dP * P[node] * EDT_GENERATOR.PHEROMONE_BOOST 
             visibility_score = self.dV * V[node]
             node_probabilities[node] = (pheromone_score + visibility_score) * diversity_factor
+
+        f = open('log.txt', 'a')
+        print(f"  |_Temps de calcul des probabilités: {datetime.datetime.now() - debut}")
+        f.write(f"  |_Temps de calcul des probabilités: {datetime.datetime.now() - debut}\n")
+        f.close()
+
+        del P, V
 
         if not node_probabilities: return None
         
@@ -502,7 +517,3 @@ class EDT_GENERATOR:
         f.close()
         debut = datetime.datetime.now()
         await EDT_GENERATOR.update_created_edt(ant.edt.get_signature())
-        f = open('log.txt', 'a')
-        print(f"  |_Temps de mise à jour des EDTs: {datetime.datetime.now() - debut}")
-        f.write(f"  |_Temps de mise à jour des EDTs: {datetime.datetime.now() - debut}\n")
-        f.close()

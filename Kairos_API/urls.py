@@ -24,12 +24,15 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', views.home),
-    path('api/generate_edt/', views_generator.generate_edt),
 
     # Authentification
     path('api/login/', views_authentification.Login),
     path('api/register/', views_authentification.Register),
     path('api/reset_password/', views_authentification.ResetPassword),
+
+    # Génerateur
+    path('api/generate_edt/', views_generator.generate_edt),
+    path('api/get_prof_dispo/<int:id_prof>/<int:semaine>/<int:annee>/', views_generator.get_prof_dispo),
 
     # Enseigne
     path('api/add-enseignes/', views_enseigne.add_enseigne),
