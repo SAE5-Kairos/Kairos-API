@@ -60,6 +60,39 @@ class Professeur:
         slots = []
         """[ [slots jour i], ...]"""
 
+        # Créer le resultat de l'intesection des dispo du professeur et de l'EDT
+
+        # On parcours la liste des horraires de la semaine avec un compteur, 
+        # si le compteur atteint la taille du cours, on ajoute le créneau du début du compteur à la liste des créneaux
+        # On décale le créneau du début du compteur a +1 et on retire 1 au compteur
+
+        # Intersecter les dispo du professeur avec celles de l'EDT
+        week_intersect_dispo = []
+
+        for jour, prof_dispo_calendrier in enumerate(self.dispo):
+            week_intersect_dispo.append([])
+            for heure, prof_dispo in enumerate(prof_dispo_calendrier):
+                week_intersect_dispo[-1].append(prof_dispo * intersect_dispo[jour][heure])
+
+        # On récupère les créneaux disponibles
+        for jour, dispo_calendrier in enumerate(week_intersect_dispo):
+            compteur = 0
+            debut_creneau = 0
+
+            for heure, dispo in enumerate(dispo_calendrier):
+                if dispo == 1:
+                    compteur += 1
+                    if compteur == cours.duree * 2:
+                        slots.append((jour, debut_creneau))
+                        compteur -= 1
+                        debut_creneau += 1
+                else:
+                    compteur = 0
+                    debut_creneau = heure + 1
+
+        return slots
+
+
         for jour, prof_dispo_calendrier in enumerate(self.dispo):
             on_slot = False
             slots.append([])
