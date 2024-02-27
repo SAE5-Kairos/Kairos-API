@@ -74,7 +74,7 @@ urlpatterns = [
     
     # EDT
     path('api/emploidutemps/<int:code>/', views_EDT.by_id),
-    path('api/emploidutemps/<int:semaine>/<int:annee>/', views_EDT.get_all_by_smeaine),
+    path('api/emploidutemps/<int:semaine>/<int:annee>/', views_EDT.get_all_by_semaine),
     path('api/emploidutemps/<int:semaine>/<int:annee>/<int:idGroupe>/', views_EDT.by_groupe),
     path('api/emploidutemps/', views_EDT.add),
 

@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 @method_awaited("GET")
-def get_all_by_smeaine(request, semaine: int, annee: int):
+def get_all_by_semaine(request, semaine: int, annee: int):
     db = Database.get()
     sqlDateEDT = "SELECT IdEDT as id, Semaine as semaine, Annee as annee FROM EDT WHERE Semaine = %s AND Annee = %s"
     
@@ -16,7 +16,7 @@ def get_all_by_smeaine(request, semaine: int, annee: int):
     dataGroupe = db.run("SELECT IdGroupe as id, G.Nom as gnom, S.Nom as snom FROM Groupe as G LEFT JOIN Salle as S ON G.IdSalle = S.IdSalle").fetch()
     dataCours = db.run("SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours").fetch()
     dataBanqueCours = db.run("""
-            SELECT IdBanque as id, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
+            SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
             FROM Banque
             LEFT JOIN Utilisateur
             ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -95,6 +95,7 @@ def get_all_by_smeaine(request, semaine: int, annee: int):
             if banque is not None:
                 tempCours = {
                     'id': cours['id'],
+                    'idEnseignant': banque['idEnseignant'],
                     'enseignant': banque['enseignant'],
                     'type': banque['type'],
                     'libelle': banque['libelle'],
@@ -129,7 +130,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     sqlDateEDT = "SELECT IdEDT as id, Semaine as semaine, Annee as annee FROM EDT WHERE Semaine = %s AND Annee = %s"
     sqlDataCours = "SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours WHERE IdGroupe = %s"
     dataBanqueCours = db.run("""
-            SELECT IdBanque as id, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
+            SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
             FROM Banque
             LEFT JOIN Utilisateur
             ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -160,6 +161,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
                 cours = dict(cours)
                 banque = next((banque for banque in dataBanqueCours if banque["id"] == cours["idBanque"]), None)
                 if banque is not None:
+                    cours["idEnseignant"] = banque["idEnseignant"]
                     cours["enseignant"] = banque["enseignant"]
                     cours["type"] = banque["type"]
                     cours["libelle"] = banque["libelle"]
