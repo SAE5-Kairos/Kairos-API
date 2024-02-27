@@ -51,11 +51,12 @@ def home(request):
         {"path": "groupe/<int:code>/", "DELETE": ""},
         {"path": "groupe/", "POST": "{'nom': string,'id_salle': int,'id_groupe_superieur': int}"},
 
-        {"path": "emploidutemps/", "GET": ""},
-        {"path": "emploidutemp/<int:code>/", "GET": ""},
-        {"path": "emploidutemp/<int:code>/", "PUT": "{'date': string,'version': int}"},
-        {"path": "emploidutemp/<int:code>/", "DELETE": ""},
-        {"path": "emploidutemp/", "POST": "{'date': string,'version': int}"},
+        {"path": "emploidutemps/<int:code>/", "GET": ""},
+        {"path": "emploidutemps/<int:semaine>/<int:annee>/", "GET": ""},
+        {"path": "emploidutemps/<int:semaine>/<int:annee>/<int:idGroupe>/", "GET": ""},
+        {"path": "emploidutemps/<int:code>/", "PUT": "{'date': string,'version': int}"},
+        {"path": "emploidutemps/<int:code>/", "DELETE": ""},
+        {"path": "emploidutemps/", "POST": "{'date': string,'version': int}"},
 
         {"path": "banques/", "GET": ""},
         {"path": "banque/<int:code>/", "GET": ""},
