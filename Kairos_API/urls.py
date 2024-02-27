@@ -55,6 +55,7 @@ urlpatterns = [
     path('api/indisponibilites/', views_indisponibilite.get_all),
     path('api/indisponibilite/<int:code>/', views_indisponibilite.by_id),
     path('api/indisponibilite/', views_indisponibilite.add),
+    path('api/indisponibilite/professeur/<int:code>', views_indisponibilite.get_indiponibility_by_user_id),
 
     # Ressource
     path('api/ressources/', views_ressource.get_all),
