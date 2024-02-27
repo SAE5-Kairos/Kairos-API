@@ -29,7 +29,7 @@ def by_id(request, code: int):
         data = db.run([sql, (code,)]).fetch()
         db.close()
         return JsonResponse(data[0] if len(data) > 0 else {"error": f"Data not found for key {code}"}, safe=False)
-    
+
     elif request.method == "DELETE":
         sql = """
         DELETE
@@ -40,7 +40,7 @@ def by_id(request, code: int):
         nb_row_affected = db.run([sql, (code,)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
-   
+
     else:
         date_debut = ""
         date_fin = ""
@@ -93,3 +93,20 @@ def add(request):
     except:
         return JsonResponse({"error":"An error has occurred during the process."}, safe=False)
 
+
+@csrf_exempt
+@method_awaited("GET")
+def get_indiponibility_by_user_id(request, code: int):
+    db = Database.get()
+    # Get uniquement les indisponibilité du jour et les suivantes, les précédentes le seront pas
+    sql = """
+        SELECT Indisponibilite.IdIndisponibilite, Indisponibilite.DateDebut, Indisponibilite.DateFin
+        FROM Indisponibilite
+        LEFT JOIN Utilisateur ON Utilisateur.IdUtilisateur = Indisponibilite.IdUtilisateur 
+        WHERE Utilisateur.IdUtilisateur = %s
+        AND Indisponibilite.DateFin > DATE_SUB(NOW(), INTERVAL 1 DAY)
+        ORDER BY Indisponibilite.DateDebut
+    """
+    data = db.run([sql, (code,)]).fetch()
+    db.close()
+    return JsonResponse(data, safe=False)

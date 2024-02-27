@@ -32,6 +32,7 @@ def home(request):
         {"path": "indisponibilite/<int:code>/", "PUT": "{'date_debut': string,'date_fin': string,'id_utilisateur': int}"},
         {"path": "indisponibilite/<int:code>/", "DELETE": ""},
         {"path": "indisponibilite/", "POST": "[{'date_debut': string,'date_fin': string,'id_utilisateur': int}]"},
+        {"path": "indisponibilite/professeur/<int:code>", "GET": ""},
 
         {"path": "ressources/", "GET": ""},
         {"path": "ressource/<int:code>/", "GET": ""},
