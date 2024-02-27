@@ -72,9 +72,10 @@ urlpatterns = [
     path('api/groupe/', views_groupe.add),
     
     # EDT
-    path('api/emploidutemps/', views_EDT.get_all),
-    path('api/emploidutemp/<int:code>/', views_EDT.by_id),
-    path('api/emploidutemp/', views_EDT.add),
+    path('api/emploidutemps/<int:code>/', views_EDT.by_id),
+    path('api/emploidutemps/<int:semaine>/<int:annee>/', views_EDT.get_all_by_smeaine),
+    path('api/emploidutemps/<int:semaine>/<int:annee>/<int:idGroupe>/', views_EDT.by_groupe),
+    path('api/emploidutemps/', views_EDT.add),
 
     # Banque
     path('api/banques/', views_banque.GetAll),
