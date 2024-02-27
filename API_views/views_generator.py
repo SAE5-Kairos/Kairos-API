@@ -85,7 +85,7 @@ def generate_edt(request):
             prof = Professeur(dispo, name)
             profs[id_prof] = prof
             
-        Cours(prof, duree / 2, id_banque, nom_cours, color)
+        Cours(id_prof, prof, duree / 2, id_banque, nom_cours, color)
     
     debut = datetime.datetime.now()
     async def edt_generator_async(): await EDT_GENERATOR.generate_edts(25, int(len(Cours.ALL) * 2))
@@ -99,28 +99,28 @@ def generate_edt(request):
     week_date = f'{body[0]["annee"]}-W{body[0]["semaine"]}'
     week_date = datetime.datetime.strptime(week_date + '-1', "%Y-W%W-%w")
 
-    version_edt = db.run(["SELECT COUNT(IdEDT) + 1 AS 'Version' FROM EDT WHERE DateEDT = %s", (week_date, )]).fetch(first=True)['Version']
+    # version_edt = db.run(["SELECT COUNT(IdEDT) + 1 AS 'Version' FROM EDT WHERE DateEDT = %s", (week_date, )]).fetch(first=True)['Version']
 
-    sql = """
-        INSERT INTO EDT (DateEDT, Version) VALUES
-        (%s,%s);
-    """
+    # sql = """
+    #     INSERT INTO EDT (DateEDT, Version) VALUES
+    #     (%s,%s);
+    # """
     
-    db.run([sql, (week_date, version_edt)])
-    edt_id = db.last_id()
+    # db.run([sql, (week_date, version_edt)])
+    # edt_id = db.last_id()
 
-    # Stocker les cours en base
-    for course in EDT_GENERATOR.BETTER_EDT.placed_cours:
-        if course.debut is not None:
-            sql = """
-                INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe) 
-                VALUES (%s,%s,%s,%s,%s);
-            """
+    # # Stocker les cours en base
+    # for course in EDT_GENERATOR.BETTER_EDT.placed_cours:
+    #     if course.debut is not None:
+    #         sql = """
+    #             INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe) 
+    #             VALUES (%s,%s,%s,%s,%s);
+    #         """
 
-            params = (course.jour, course.debut, course.banque, edt_id, 1)
-            db.run([sql, params])
-            course.name = db.last_id()
-    db.close()
+    #         params = (course.jour, course.debut, course.banque, edt_id, 1)
+    #         db.run([sql, params])
+    #         course.name = db.last_id()
+    # db.close()
 
     return JsonResponse(EDT_GENERATOR.BETTER_EDT.jsonify(), safe=False)
 
