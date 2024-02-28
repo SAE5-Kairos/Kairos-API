@@ -16,6 +16,9 @@ class Ant:
         
         self.CPY_CREATED_EDT = EDT_GENERATOR.CREATED_EDT.copy()
 
+    def __repr__(self) -> str:
+        return f"Ant:\n{self.edt}"
+
     def choose_next_node(self, db:Database):
         """
             Node: (cours.name, cours.jour, cours.debut)
@@ -28,7 +31,7 @@ class Ant:
         """
         
         # On récupère les cours disponibles
-        available_courses:list[Cours] = [course for course in self.edt.COURS if course not in self.edt.placed_cours]
+        available_courses:list[Cours] = [course for course in Cours.ALL if course not in self.edt.placed_cours]
         if not available_courses: return None
 
         P = {} # Probabilité de choisir un cours, à un créneau en fonction des phéromones
@@ -152,8 +155,8 @@ class Ant:
             before_score = self.edt.get_score()
 
             self.node_history.append(node)
-            cours = Cours.get_course_by_name(self.node_history[-1][0])
-            self.edt.place_cours(cours, self.node_history[-1][1], self.node_history[-1][2])
+            cours = Cours.get_course_by_name(node[0])
+            self.edt.place_cours(cours, node[1], node[2])
 
             # On calcule le score après avoir placé le cours et on l'ajoute à la liste des phéromones
             # Prends un peu de temps, est ce vraiment utile 0.005 par cours placé * nb fourmis * nb itérations

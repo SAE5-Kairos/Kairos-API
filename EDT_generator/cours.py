@@ -22,6 +22,9 @@ class Cours:
     def __str___(self):
         return str(self.name)
     
+    def __int__(self):
+        return 0 # non disponible
+    
     def __repr__(self):
         return str(self.name)
     

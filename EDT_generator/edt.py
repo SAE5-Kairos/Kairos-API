@@ -1,4 +1,4 @@
-import asyncio, random
+import asyncio, random, copy
 
 from EDT_generator.cours import Cours
 
@@ -18,7 +18,7 @@ class EDT:
     ]
     """[ {Cours: {slot: [damages], ...}, ...}, ...], ...]"""
 
-    week = [
+    WEEK = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # Lundi
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # Mardi
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # Mercredi
@@ -32,8 +32,7 @@ class EDT:
         self.day_index = 0
         self.tree_index = 0
         self.final = False
-        self.week = [day.copy() for day in self.week]
-        self.COURS = [cours.copy() for cours in Cours.ALL]
+        self.week = copy.deepcopy(EDT.WEEK)
         self.COURSE_DAMAGES = [ {course: damages.copy() for course, damages in day.items()} for day in self.COURSE_DAMAGES]
 
         #self.set_course_probability()
@@ -50,7 +49,7 @@ class EDT:
         for course in Cours.ALL:
 
             # Récupérer les slots disponibles pour un cours
-            slots = course.professeur.get_slots(EDT.week, course)
+            slots = course.professeur.get_slots(EDT.WEEK, course)
             hours_slot_by_days = [
                 [], # Lundi
                 [], # Mardi
@@ -257,12 +256,14 @@ class EDT:
         if len(pool) == 0: self.final = True
 
     def place_cours(self, course, jour_index, heure_index):
-        if heure_index + 2 * course.duree > 25: raise Exception(f"Le cours ne peut pas être placé à cette heure: {heure_index} - {2 * course.duree}\n" + str(course.professeur.get_slots(self.week, course)))
+        if heure_index + 2 * course.duree > len(self.week[jour_index]): raise Exception(f"Le cours ne peut pas être placé à cette heure: {heure_index} - {2 * course.duree}\n" + str(course.professeur.get_slots(self.week, course)))
+        
         for index in range(heure_index, int(heure_index + course.duree * 2)):
             if self.week[jour_index][index] != 1: 
                 raise Exception(f"Le cours ne peut pas être placé à cette heure: {self.week[jour_index][index]} - {2 * course.duree}, {jour_index}j {index}\n" + str(course.professeur.get_slots(self.week, course)))
             self.week[jour_index][index] = course
-
+        
+        course = course.copy()
         course.debut = heure_index
         course.jour = jour_index
         self.placed_cours.append(course)
@@ -297,7 +298,7 @@ class EDT:
         malus_samedi = EDT.SAMEDI_MALUS * (nb_courses_samedi / (nb_dispo_same_samedi or 1))
 
         cours_midi = len([course for course in self.placed_cours if course.name.startswith('Midi')])
-        total_cours_midi = sum([1 for course in self.COURS if course.name.startswith('Midi')])
+        total_cours_midi = sum([1 for course in Cours.ALL if course.name.startswith('Midi')])
         bonus_midi = EDT.MIDI_BONUS * (cours_midi / (total_cours_midi or 1))
         malus_midi = EDT.MIDI_MALUS * (cours_midi - total_cours_midi)
 
@@ -309,27 +310,51 @@ class EDT:
     def jsonify(self):
         json_obj = {
             'Lundi': [
-                {'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 0 and not cours.display_name.startswith('Midi')
+                {
+                    'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 
+                    'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 
+                    'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color
+                }  for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 0 and not cours.display_name.startswith('Midi')
             ],
 
             'Mardi': [
-                {'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 1 and not cours.display_name.startswith('Midi')
+                {
+                    'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 
+                    'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 
+                    'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color
+                } for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 1 and not cours.display_name.startswith('Midi')
             ],
 
             'Mercredi': [
-                {'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 2 and not cours.display_name.startswith('Midi')
+                {
+                    'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 
+                    'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 
+                    'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color
+                } for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 2 and not cours.display_name.startswith('Midi')
             ],
 
             'Jeudi': [
-                {'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 3 and not cours.display_name.startswith('Midi')
+                {
+                    'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 
+                    'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 
+                    'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color
+                } for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 3 and not cours.display_name.startswith('Midi')
             ],
 
             'Vendredi': [
-                {'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 4 and not cours.display_name.startswith('Midi')
+                {
+                    'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 
+                    'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 
+                    'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color
+                } for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 4 and not cours.display_name.startswith('Midi')
             ],
 
             'Samedi': [
-                {'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 5 and not cours.display_name.startswith('Midi')
+                {
+                    'id': f'c{cours.name}', 'idEnseignant': f'{cours.id_prof}', 
+                    'enseignant': f'{cours.professeur}', 'type': 'TD', 'libelle': cours.display_name, 
+                    'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color
+                } for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 5 and not cours.display_name.startswith('Midi')
             ],
         }
         return json_obj

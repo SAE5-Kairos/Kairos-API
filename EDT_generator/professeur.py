@@ -68,27 +68,39 @@ class Professeur:
 
         # Intersecter les dispo du professeur avec celles de l'EDT
         week_intersect_dispo = []
-
+        
         for jour, prof_dispo_calendrier in enumerate(self.dispo):
             week_intersect_dispo.append([])
             for heure, prof_dispo in enumerate(prof_dispo_calendrier):
-                week_intersect_dispo[-1].append(prof_dispo * intersect_dispo[jour][heure])
+                if intersect_dispo[jour][heure] == 1:
+                    week_intersect_dispo[jour].append(prof_dispo)
+                else:
+                    week_intersect_dispo[jour].append(0)
 
         # On récupère les créneaux disponibles
         for jour, dispo_calendrier in enumerate(week_intersect_dispo):
             compteur = 0
             debut_creneau = 0
+            on_slot = False
+            slots.append([])
 
             for heure, dispo in enumerate(dispo_calendrier):
                 if dispo == 1:
                     compteur += 1
+                    
                     if compteur == cours.duree * 2:
-                        slots.append((jour, debut_creneau))
+                        if not on_slot:
+                            slots[-1].append({"total_dispo": 1, "heures_index": [debut_creneau], 'duree': cours.duree * 2})
+                            on_slot = True
+                        else:
+                            slots[-1][-1]["total_dispo"] += 1
+                            slots[-1][-1]["heures_index"].append(debut_creneau)
                         compteur -= 1
                         debut_creneau += 1
                 else:
                     compteur = 0
                     debut_creneau = heure + 1
+                    on_slot = False
 
         return slots
 

@@ -334,8 +334,8 @@ stats = {}
 print(ant.edt.jsonify())
 print(ant.edt)
 print(ant.edt.get_score())
-print(len(ant.edt.placed_cours), len(ant.edt.COURS))
+print(len(ant.edt.placed_cours))
 print('-------------------\n')
-print([(cours, cours.professeur) for cours in ant.edt.COURS if cours not in ant.edt.placed_cours])
+print([(cours, cours.professeur) for cours in ant.placed_courses if cours not in ant.edt.placed_cours])
 
 print()
