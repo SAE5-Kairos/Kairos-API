@@ -164,3 +164,53 @@ def get_prof_dispo(request, id_prof, semaine, annee):
             else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
 
     return JsonResponse(dispo, safe=False)
+
+@csrf_exempt
+@method_awaited("GET")
+def get_prof_dispo_all(request, semaine, annee):
+    db = Database.get()
+    sqlIdUtilisateur= """
+        SELECT 
+            IdUtilisateur as idEnseignant, DateDebut, DateFin, WEEKDAY(DateDebut) AS JourDebut, WEEKDAY(DateFin) AS JourFin
+        FROM 
+            Indisponibilite 
+        WHERE
+            WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
+            AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
+    """
+    data = db.run([sqlIdUtilisateur, (semaine, semaine, annee, annee)]).fetch()
+    db.close()
+
+    allIndispo = {}
+    for indispo in data:
+        id_enseignant = indispo["idEnseignant"]
+        # Si l'enseignant n'est pas déjà dans le dictionnaire
+        if id_enseignant not in allIndispo.keys():
+            allIndispo[id_enseignant] = [indispo]
+        else:
+            allIndispo[id_enseignant].append(indispo)
+
+    for id_enseignant, data in allIndispo.items():
+        dispo = [[ 1 for _ in range(24)] for __ in range(6)]
+        for indispo in data:
+            if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
+
+            if indispo["DateDebut"].date() == indispo["DateFin"].date():
+                for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
+                    dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
+
+            else:
+                # Si l'absence est sur la même semaine
+                if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
+                    for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
+                        dispo[day] = [ 0 for _ in range(24)]
+
+                    for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
+                        dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
+
+                # Si le prof est abs toute la semaine
+                else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
+
+        allIndispo[id_enseignant] = dispo
+
+    return JsonResponse(allIndispo, safe=False)
