@@ -64,7 +64,7 @@ def generate_edt(request):
             data = db.run([sql, params]).fetch()
             
             for indispo in data:
-                if indispo["DateFin"].isocalendar().week > cours_data['semaine']: indispo['JourFin'] = 6
+                if indispo["DateFin"].isocalendar()[1] > cours_data['semaine']: indispo['JourFin'] = 6
 
                 if indispo["DateDebut"].date() == indispo["DateFin"].date():
                     for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
@@ -72,7 +72,7 @@ def generate_edt(request):
 
                 else:
                     # Si l'absence est sur la même semaine
-                    if indispo["DateDebut"].isocalendar().week  == indispo["DateFin"].isocalendar().week:
+                    if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
                         for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()): # Fin exclue
                             dispo[day] = [ 0 for _ in range(24)]
 
@@ -145,7 +145,7 @@ def get_prof_dispo(request, id_prof, semaine, annee):
 
     dispo = [[ 1 for _ in range(24)] for __ in range(6)]
     for indispo in data:
-        if indispo["DateFin"].isocalendar().week > semaine: indispo['JourFin'] = 6
+        if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
 
         if indispo["DateDebut"].date() == indispo["DateFin"].date():
             for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
@@ -153,7 +153,7 @@ def get_prof_dispo(request, id_prof, semaine, annee):
 
         else:
             # Si l'absence est sur la même semaine
-            if indispo["DateDebut"].isocalendar().week  == indispo["DateFin"].isocalendar().week:
+            if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
                 for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
                     dispo[day] = [ 0 for _ in range(24)]
 
