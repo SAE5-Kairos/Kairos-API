@@ -214,3 +214,4 @@ def get_prof_dispo_all(request, semaine, annee):
         allIndispo[id_enseignant] = dispo
 
     return JsonResponse(allIndispo, safe=False)
+

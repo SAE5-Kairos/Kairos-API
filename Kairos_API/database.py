@@ -143,4 +143,16 @@ CREATE TABLE IF NOT EXISTS PHEROMONES (
     INDEX idx_pheromones (ID_COURS)
 );
 """
+
 db_edt_generator.run(sql)
+
+sql = """
+CREATE TABLE IF NOT EXISTS EDT_SIGNATURES (
+    SIGNATURE VARCHAR(528) PRIMARY KEY,
+    NOMBRE INT,
+    INDEX idx_signatures (SIGNATURE)
+);
+"""
+db_edt_generator.run(sql)
+
+db_edt_generator.close()

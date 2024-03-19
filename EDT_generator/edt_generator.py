@@ -13,8 +13,6 @@ class Ant:
         self.node_history = []
         self.score_evolution = []
         self.focused_score = None
-        
-        self.CPY_CREATED_EDT = EDT_GENERATOR.CREATED_EDT.copy()
 
     def __repr__(self) -> str:
         return f"Ant:\n{self.edt}"
@@ -39,7 +37,6 @@ class Ant:
         V = {} # Probabilité de choisir un cours, à un créneau en fonction de la visibilité
         """(cours.name, cours.jour, cours.debut): probabilité)"""
 
-        debut = datetime.datetime.now()
         # Pour chacun des cours disponibles on va récupérer sa probabilité de choix (P et V)
         for course in available_courses:
             # On récupère les créneaux disponibles pour le professeur pour ce cours
@@ -57,11 +54,6 @@ class Ant:
                         # On récupère la probabilité de choisir ce cours en fonction de la visibilité
                         V[(course.name, jour, heure)] = EDT_GENERATOR.get_visibility_probability((course.name, jour, heure), course, self.edt)
 
-        print(f"  |_Temps de récupération des probabilités: {datetime.datetime.now() - debut}")
-        f = open('log.txt', 'a')
-        f.write(f"  |_Temps de récupération des probabilités: {datetime.datetime.now() - debut}\n")
-        f.close()
-
         if EDT_GENERATOR.RELEARNING:
             if len(V) == 1:
                 return list(V.keys())[0]
@@ -75,31 +67,28 @@ class Ant:
                 V[node] = (max_V - V[node]) * 100 / max_V
         node_probabilities = {}
 
-        debut = datetime.datetime.now()
         signature = self.edt.get_signature() # On récupère la signature de l'EDT actuel
-        total_nb_edt_with_same_signature = 0
-        nb_other_signature = 0
-        same_signature_calculed = False
+
+        sql = """
+            SELECT SUM(NOMBRE) as n
+            FROM EDT_SIGNATURES
+            WHERE SIGNATURE LIKE %s
+        """
+
+        total_nb_edt_with_same_signature = int(db.run([sql, (signature + '%%',)]).fetch(first=True)['n'] or 0)
         
         # lent, à optimiser
         # On calcule la probabilité de choisir un cours en fonction de la phéromone et de la visibilité
         for node in V:
             furtur_signature = signature + f"{node[0]}-{node[1]}-{node[2]}/" # On calcule la signature de l'EDT si on place le cours
-            times_furtur_signature = 0
+
+            # On cherche à connaitre le nombre de fois que l'EDT a été créé avec la signature actuel + le cours
+            # Au total lors de l'ensemble des itérations
             
+            times_furtur_signature = int(db.run([sql, (furtur_signature + '%%',)]).fetch(first=True)['n'] or 0)
             # On compare la signature actuel + le cours afin de voir le nombre de fois qu'il a été choisi
-            for other_signature in self.CPY_CREATED_EDT:
-                
-                if other_signature.startswith(signature):
-                    if other_signature.startswith(furtur_signature):
-                        times_furtur_signature += self.CPY_CREATED_EDT[other_signature]
 
-                    if not same_signature_calculed: # On calcule le nombre d'EDT avec la même signature que l'EDT actuel
-                        total_nb_edt_with_same_signature += self.CPY_CREATED_EDT[other_signature]
-                        nb_other_signature += 1
-            same_signature_calculed = True
-
-            # On calcule le facteur de diversité
+            # On calcule le facteur de diversité; TODO: régle de calcul à revoir
             if total_nb_edt_with_same_signature != 0 and times_furtur_signature * (1 + EDT_GENERATOR.DIVERSITY_COEF) > total_nb_edt_with_same_signature:
                 diversity_factor = EDT_GENERATOR.DIVERSITY_COEF
             else:
@@ -108,11 +97,6 @@ class Ant:
             pheromone_score = self.dP * P[node] * EDT_GENERATOR.PHEROMONE_BOOST 
             visibility_score = self.dV * V[node]
             node_probabilities[node] = (pheromone_score + visibility_score) * diversity_factor
-
-        f = open('log.txt', 'a')
-        print(f"  |_Temps de calcul des probabilités: {datetime.datetime.now() - debut}")
-        f.write(f"  |_Temps de calcul des probabilités: {datetime.datetime.now() - debut}\n")
-        f.close()
 
         del P, V
 
@@ -168,17 +152,11 @@ class Ant:
                 cours = db.last_id()
             else:
                 cours = db.run([sql_select, (node[0], node[1], node[2])]).fetch(first=True)['ID']
-
-            # Update CREATED_EDT (pour la diversité) selon la signature de l'EDT
-            # On cherche a limiter la taille du dico des possibilités pour ne pas faire exploser la mémoire et le temps d'execution
-            signature = self.edt.get_signature()
-            for other_signature in self.CPY_CREATED_EDT.copy():
-                if not other_signature.startswith(signature):
-                    del self.CPY_CREATED_EDT[other_signature]
         
             node = self.choose_next_node(db=db)
 
         # Vérifier si l'EDT est meilleur que le meilleur EDT
+        # TODO: Swtich en BDD
         score = self.edt.get_score()
         if score > EDT_GENERATOR.BETTER_EDT_SCORE:
             async with EDT_GENERATOR.BETTER_EDT_LOCK:
@@ -240,12 +218,7 @@ class EDT_GENERATOR:
     @classmethod
     async def update_learning_table(cls, key, value):
         async with cls.LEARNING_TABLE_LOCK:            
-            # Si la valeur moyenne est inférieure à la valeur actuelle, on l'ajoute à la liste
             cls.LEARNING_TABLE[key].append(value)
-
-                # Retirer les valeurs trop faibles
-                # avg = sum(cls.LEARNING_TABLE[key]) / len(cls.LEARNING_TABLE[key])
-                # cls.LEARNING_TABLE[key] = [val for val in cls.LEARNING_TABLE[key] if val >= avg]
 
     @classmethod
     async def update_learning_table_list(cls, list_of_key, value):
@@ -514,9 +487,8 @@ class EDT_GENERATOR:
     async def run_ant2(ant, db:Database):
         debut = datetime.datetime.now()
         await ant.visit(db)
-        f = open('log.txt', 'a')
-        print(f"  |_Temps de visite: {datetime.datetime.now() - debut}")
-        f.write(f"  |_Temps de visite: {datetime.datetime.now() - debut}\n")
-        f.close()
-        debut = datetime.datetime.now()
-        await EDT_GENERATOR.update_created_edt(ant.edt.get_signature())
+
+        sql_insert = """
+            INSERT INTO EDT_SIGNATURES VALUES (%s, 1) ON DUPLICATE KEY UPDATE NOMBRE = NOMBRE + 1;
+        """
+        db.run([sql_insert, (ant.edt.get_signature(), )])
