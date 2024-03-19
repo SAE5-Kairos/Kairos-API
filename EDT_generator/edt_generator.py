@@ -492,8 +492,3 @@ class EDT_GENERATOR:
             INSERT INTO EDT_SIGNATURES VALUES (%s, 1) ON DUPLICATE KEY UPDATE NOMBRE = NOMBRE + 1;
         """
         db.run([sql_insert, (ant.edt.get_signature(), )])
-
-        f = open('log.txt', 'a')
-        print(f"  |_Temps de visite: {datetime.datetime.now() - debut}")
-        f.write(f"  |_Temps de visite: {datetime.datetime.now() - debut}\n")
-        f.close()
