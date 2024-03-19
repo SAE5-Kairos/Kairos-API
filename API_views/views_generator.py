@@ -214,3 +214,57 @@ def get_prof_dispo_all(request, semaine, annee):
         allIndispo[id_enseignant] = dispo
 
     return JsonResponse(allIndispo, safe=False)
+
+@csrf_exempt
+@method_awaited("PUT")
+def save_edt(request, groupe, semaine, annee):
+    body_unicode = request.body.decode('utf-8')
+    body = json.loads(body_unicode)
+    """
+    {
+        Lundi: [{idBanque: idBanque, heureDebut: heureDebut}, ..],
+        Mardi: [{idBanque: idBanque, heureDebut: heureDebut}, ..],
+        Mercredi: [{idBanque: idBanque, heureDebut: heureDebut}, ..],
+        Jeudi: [{idBanque: idBanque, heureDebut: heureDebut}, ..],
+        Vendredi: [{idBanque: idBanque, heureDebut: heureDebut}, ..],
+        Samedi: [{idBanque: idBanque, heureDebut: heureDebut}, ..]
+    } 
+    """
+
+    sql = """
+        SELECT IdEDT FROM EDT WHERE Semaine = %s AND Annee = %s;
+    """
+
+    db = Database.get()
+    db.run([sql, (semaine, annee)])
+    if not db.exists():
+        sql = """
+            INSERT INTO EDT (Semaine, Annee) VALUES (%s, %s);
+        """
+
+        db.run([sql, (semaine, annee)])
+        edt_id = db.last_id()
+    else:
+        edt_id = db.fetch(first=True)['IdEDT']
+        sql = """
+            DELETE FROM Cours WHERE IdEDT = %s;
+        """
+        db.run([sql, (edt_id, )])
+
+    jours_id = {
+        "Lundi": 0,
+        "Mardi": 1,
+        "Mercredi": 2,
+        "Jeudi": 3,
+        "Vendredi": 4,
+        "Samedi": 5
+    }
+
+    sql = """
+        INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe)
+        VALUES (%s, %s, %s, %s, %s);
+    """
+    for jour, cours in body.items():
+        for cours_data in cours:
+            db.run([sql, (jours_id[jour], cours_data['heureDebut'], cours_data['idBanque'], edt_id, groupe)])
+    db.close()
