@@ -142,14 +142,22 @@ def get_all_by_semaine(request, semaine: int, annee: int):
 @method_awaited("GET")
 def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     db = Database.get()
+
+    # Récupération de la salle
+    sqlSalle = "SELECT s.Nom as snom FROM Groupe as g1 LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle WHERE g1.IdGroupe = %s"
+    nomSalle = db.run([sqlSalle, (idGroupe,)]).fetch(first=True)['snom']
+    
     edt = {
-		"Lundi": [],
-		"Mardi": [],
-		"Mercredi": [],
-		"Jeudi": [],
-		"Vendredi": [],
-		"Samedi": []
-	}
+        "salle": nomSalle,
+        "cours": {
+            "Lundi": [],
+            "Mardi": [],
+            "Mercredi": [],
+            "Jeudi": [],
+            "Vendredi": [],
+            "Samedi": []
+        }
+    }
     
 	# Récupération de l'ID EDT
     sqlDateEDT = "SELECT IdEDT as id FROM EDT WHERE Semaine = %s AND Annee = %s"
