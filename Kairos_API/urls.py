@@ -70,6 +70,7 @@ urlpatterns = [
 
     # Groupe
     path('api/groupes/', views_groupe.get_all),
+    path('api/groupes/etudiants/', views_groupe.get_all_etudiants),
     path('api/groupe/<int:code>/', views_groupe.by_id),
     path('api/groupe/', views_groupe.add),
     

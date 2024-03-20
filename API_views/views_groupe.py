@@ -15,6 +15,20 @@ def get_all(request):
     return JsonResponse(data, safe=False)
 
 
+@csrf_exempt
+@method_awaited("GET")
+def get_all_etudiants(request):
+    db = Database.get()
+    data = db.run("""
+		SELECT g1.IdGroupe as id, g1.Nom as gnom, s.Nom as snom
+		FROM Groupe as g1
+		LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle
+		WHERE g1.Nom NOT IN ('Professeur', 'Administrateur') 
+		AND g1.EstFinal = 1
+    """).fetch()
+    db.close()
+    return JsonResponse(data, safe=False)
+
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt
 @method_awaited(["GET", "DELETE", "PUT"])

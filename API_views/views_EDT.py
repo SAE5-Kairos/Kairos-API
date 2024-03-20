@@ -5,36 +5,76 @@ from Kairos_API.core import method_awaited
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
-
 @csrf_exempt
 @method_awaited("GET")
 def get_all_by_semaine(request, semaine: int, annee: int):
     db = Database.get()
-    sqlDateEDT = "SELECT IdEDT as id, Semaine as semaine, Annee as annee FROM EDT WHERE Semaine = %s AND Annee = %s"
-    
-    dataEDT = db.run([sqlDateEDT, (semaine, annee)]).fetch()
-    dataGroupe = db.run("SELECT IdGroupe as id, G.Nom as gnom, S.Nom as snom FROM Groupe as G LEFT JOIN Salle as S ON G.IdSalle = S.IdSalle").fetch()
-    dataCours = db.run("SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours").fetch()
-    dataBanqueCours = db.run("""
-            SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
-            FROM Banque
-            LEFT JOIN Utilisateur
-            ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
-            LEFT JOIN TypeCours
-            ON Banque.IdTypeCours = TypeCours.IdTypeCours
-            LEFT JOIN Ressource
-            ON Banque.IdRessource = Ressource.IdRessource
-            LEFT JOIN Couleur
-            ON Banque.IdCouleur = Couleur.IdCouleur
-            """).fetch()
+	# Récupération des groupes
+    dataGroupe = db.run("""
+		SELECT g1.IdGroupe as id, g1.Nom as gnom, s.Nom as snom
+		FROM Groupe as g1
+		LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle
+		WHERE g1.Nom NOT IN ('Professeur', 'Administrateur') 
+		AND g1.EstFinal = 1
+		""").fetch()
 
+    # Initialisation du dictionnaire final
+    groupes = {}
+
+    # Sinon parcourir tous les groupes
+    for groupe in dataGroupe:
+        # Initialiser le dictionnaire pour le groupe actuel
+        groupes[groupe['id']] = {
+            'groupe': groupe['gnom'],
+            'salle': groupe['snom'],
+            'cours': {
+                'Lundi': [],
+                'Mardi': [],
+                'Mercredi': [],
+                'Jeudi': [],
+                'Vendredi': [],
+                'Samedi': []
+            }
+        }
+        
+	# Récupération de l'ID EDT
+    sqlDateEDT = "SELECT IdEDT as id FROM EDT WHERE Semaine = %s AND Annee = %s"
+    db.run([sqlDateEDT, (semaine, annee)])
+    
+    if db.exists():
+        id_EDT = db.fetch(first=True)['id']
+    else:
+        db.close()
+        return JsonResponse(groupes, safe=False)
+
+	# Récupération des cours et les banques de cours
+    sqlDataCours = "SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours WHERE IdEDT = %s"
+    db.run([sqlDataCours, (id_EDT,)])
+    
+    if db.exists():
+        dataCours = db.fetch()
+    else:
+        db.close()
+        return JsonResponse(groupes, safe=False)
+
+    sqlDataBanqueCours = f"""
+		SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
+		FROM Banque
+		LEFT JOIN Utilisateur
+		ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
+		LEFT JOIN TypeCours
+		ON Banque.IdTypeCours = TypeCours.IdTypeCours
+		LEFT JOIN Ressource
+		ON Banque.IdRessource = Ressource.IdRessource
+		LEFT JOIN Couleur
+		ON Banque.IdCouleur = Couleur.IdCouleur
+        WHERE IdBanque IN ({", ".join(list(set([str(cours['idBanque']) for cours in dataCours])))})
+	"""
+    dataBanqueCours = db.run(sqlDataBanqueCours).fetch()
     
     # [
     # idGroupe : 
     #     {
-    #         idEdt: int,
-    #         semaine: int,
-    #         annee: int,
     #         salle: string,
     #         cours: {
     #             Lundi: [
@@ -59,31 +99,6 @@ def get_all_by_semaine(request, semaine: int, annee: int):
     #     }
     # ]
     # Je veux un tableau de groupe avec pour chaque groupe un tableau de cours
-    
-    # Initialisation du dictionnaire final
-    groupes = {}
-
-    # Parcourir tous les groupes
-    for groupe in dataGroupe:
-        if(groupe['gnom'] in ["Administrateur", "Professeur"]):
-            continue
-
-        # Initialiser le dictionnaire pour le groupe actuel
-        groupes[groupe['id']] = {
-            'idEdt': dataEDT[0]['id'], # TODO : On doit seulement récupérer un seul EDT
-            'semaine': dataEDT[0]['semaine'], # TODO : On doit seulement récupérer un seul EDT
-            'annee': dataEDT[0]['annee'], # TODO : On doit seulement récupérer un seul EDT
-            'groupe': groupe['gnom'],
-            'salle': groupe['snom'],
-            'cours': {
-                'Lundi': [],
-                'Mardi': [],
-                'Mercredi': [],
-                'Jeudi': [],
-                'Vendredi': [],
-                'Samedi': []
-            }
-        }
 
     # Parcourir tous les cours
     for cours in dataCours:
@@ -127,69 +142,76 @@ def get_all_by_semaine(request, semaine: int, annee: int):
 @method_awaited("GET")
 def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     db = Database.get()
-    sqlDateEDT = "SELECT IdEDT as id, Semaine as semaine, Annee as annee FROM EDT WHERE Semaine = %s AND Annee = %s"
-    sqlDataCours = "SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours WHERE IdGroupe = %s"
-    dataBanqueCours = db.run("""
-            SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
-            FROM Banque
-            LEFT JOIN Utilisateur
-            ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
-            LEFT JOIN TypeCours
-            ON Banque.IdTypeCours = TypeCours.IdTypeCours
-            LEFT JOIN Ressource
-            ON Banque.IdRessource = Ressource.IdRessource
-            LEFT JOIN Couleur
-            ON Banque.IdCouleur = Couleur.IdCouleur
-            """).fetch()
+    edt = {
+		"Lundi": [],
+		"Mardi": [],
+		"Mercredi": [],
+		"Jeudi": [],
+		"Vendredi": [],
+		"Samedi": []
+	}
+    
+	# Récupération de l'ID EDT
+    sqlDateEDT = "SELECT IdEDT as id FROM EDT WHERE Semaine = %s AND Annee = %s"
+    db.run([sqlDateEDT, (semaine, annee)])
+    	
+    if db.exists():
+        id_EDT = db.fetch(first=True)['id']
+    else:
+        db.close()
+        return JsonResponse(edt, safe=False)
+        
+    sqlDataCours = "SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours WHERE IdGroupe = %s AND IdEDT = %s"
+    db.run([sqlDataCours, (idGroupe, id_EDT,)])
+    
+    if db.exists():
+        dataCours = db.fetch()
+    else:
+        db.close()
+        return JsonResponse(edt, safe=False)
 
-    dateEDT = db.run([sqlDateEDT, (semaine, annee)]).fetch()
-    dataCours = db.run([sqlDataCours, (idGroupe,)]).fetch()
+    sqlDataBanqueCours = f"""
+		SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
+		FROM Banque
+		LEFT JOIN Utilisateur
+		ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
+		LEFT JOIN TypeCours
+		ON Banque.IdTypeCours = TypeCours.IdTypeCours
+		LEFT JOIN Ressource
+		ON Banque.IdRessource = Ressource.IdRessource
+		LEFT JOIN Couleur
+		ON Banque.IdCouleur = Couleur.IdCouleur
+        WHERE IdBanque IN ({", ".join(list(set([str(cours['idBanque']) for cours in dataCours])))})
+	"""
+    dataBanqueCours = db.run(sqlDataBanqueCours).fetch()
+    
+    for cours in dataCours:
+        cours = dict(cours)
+        banque = next((banque for banque in dataBanqueCours if banque["id"] == cours["idBanque"]), None)
+        if banque is not None:
+            cours["idEnseignant"] = banque["idEnseignant"]
+            cours["enseignant"] = banque["enseignant"]
+            cours["type"] = banque["type"]
+            cours["libelle"] = banque["libelle"]
+            cours["duree"] = banque["duree"]
+            cours["style"] = banque["style"]
 
-    allEdt = []
-    for edt in dateEDT:
-        edt = dict(edt)
-        edt["cours"] = {
-            "Lundi": [],
-            "Mardi": [],
-            "Mercredi": [],
-            "Jeudi": [],
-            "Vendredi": [],
-            "Samedi": []
-        }
-        for cours in dataCours:
-            if cours["idEDT"] == edt["id"]:
-                cours = dict(cours)
-                banque = next((banque for banque in dataBanqueCours if banque["id"] == cours["idBanque"]), None)
-                if banque is not None:
-                    cours["idEnseignant"] = banque["idEnseignant"]
-                    cours["enseignant"] = banque["enseignant"]
-                    cours["type"] = banque["type"]
-                    cours["libelle"] = banque["libelle"]
-                    cours["duree"] = banque["duree"]
-                    cours["style"] = banque["style"]
-                    # del cours["idEDT"]
-                    # del cours["idBanque"]
-
-                    jour = cours["numeroJour"]
-                    if jour == 0:
-                        edt["cours"]["Lundi"].append(cours)
-                    elif jour == 1:
-                        edt["cours"]["Mardi"].append(cours)
-                    elif jour == 2:
-                        edt["cours"]["Mercredi"].append(cours)
-                    elif jour == 3:
-                        edt["cours"]["Jeudi"].append(cours)
-                    elif jour == 4:
-                        edt["cours"]["Vendredi"].append(cours)
-                    elif jour == 5:
-                        edt["cours"]["Samedi"].append(cours)
-
-        allEdt.append(edt)
+            jour = cours["numeroJour"]
+            if jour == 0:
+                edt["Lundi"].append(cours)
+            elif jour == 1:
+                edt["Mardi"].append(cours)
+            elif jour == 2:
+                edt["Mercredi"].append(cours)
+            elif jour == 3:
+                edt["Jeudi"].append(cours)
+            elif jour == 4:
+                edt["Vendredi"].append(cours)
+            elif jour == 5:
+                edt["Samedi"].append(cours)
 
     db.close()
-    return JsonResponse(allEdt, safe=False)
-
-    
+    return JsonResponse(edt, safe=False)
 
 
 # Get by Id, Delete by Id, Update by Id
