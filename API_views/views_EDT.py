@@ -111,6 +111,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
             cours = {
                 "id": cours["IdCours"],
                 "idEnseignant": cours["IdUtilisateur"],
+                "idBanque": cours["IdBanque"],
                 "enseignant": cours["enseignant"],
                 "type": cours["type"],
                 "libelle": cours["libelle"],
@@ -241,6 +242,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
         cours = {
             "id": cours["IdCours"],
             "idEnseignant": cours["IdUtilisateur"],
+            "idBanque": cours["IdBanque"],
             "enseignant": cours["enseignant"],
             "type": cours["type"],
             "libelle": cours["libelle"],
