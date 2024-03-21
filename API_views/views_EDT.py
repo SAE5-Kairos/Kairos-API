@@ -27,7 +27,21 @@ def get_all_by_semaine(request, semaine: int, annee: int):
     if db.exists():
         id_EDT = db.fetch(first=True)['IdEDT']
     else:
-        return JsonResponse({"error": "data not found", "message": "l'EDT n'a pas été retrouvé"}, safe=False)
+        all_edt = {}
+        for groupe in groupes:
+            all_edt[groupe['IdGroupe']] = {
+                "salle": groupe['SalleNom'],
+                "groupe": groupe['GroupeNom'],
+                "cours": {
+                    "Lundi": [],
+                    "Mardi": [],
+                    "Mercredi": [],
+                    "Jeudi": [],
+                    "Vendredi": [],
+                    "Samedi": []
+                }
+            }
+        return JsonResponse(all_edt, safe=False)
 
     all_edt = {}
     for groupe in groupes:
