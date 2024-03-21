@@ -137,6 +137,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
     db.close()
     return JsonResponse(groupes, safe=False)
 
+
 # Get by Semaine, Annee, idGroupe
 @csrf_exempt
 @method_awaited("GET")
@@ -144,11 +145,12 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     db = Database.get()
 
     # Récupération de la salle
-    sqlSalle = "SELECT s.Nom as snom FROM Groupe as g1 LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle WHERE g1.IdGroupe = %s"
-    nomSalle = db.run([sqlSalle, (idGroupe,)]).fetch(first=True)['snom']
+    sql_get_salle = "SELECT s.Nom as snom FROM Groupe as g1 LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle WHERE g1.IdGroupe = %s"
+    salle_name = db.run([sql_get_salle, (idGroupe,)]).fetch(first=True)['snom']
     
     edt = {
-        "salle": nomSalle,
+        "salle": salle_name,
+        "groupe": "", # TODO : Récupérer le nom du groupe
         "cours": {
             "Lundi": [],
             "Mardi": [],
@@ -168,55 +170,96 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     else:
         db.close()
         return JsonResponse(edt, safe=False)
-        
-    sqlDataCours = "SELECT IdCours as id, IdEDT as idEDT, IdGroupe as idGroupe, IdBanque as idBanque, NumeroJour as numeroJour, HeureDebut as heureDebut FROM Cours WHERE IdGroupe = %s AND IdEDT = %s"
-    db.run([sqlDataCours, (idGroupe, id_EDT,)])
     
-    if db.exists():
-        dataCours = db.fetch()
-    else:
-        db.close()
+    # Le nom du groupe
+    sql_get_groupe = "SELECT * FROM Groupe WHERE IdGroupe = %s"
+    db.run([sql_get_groupe, (idGroupe,)])
+
+    if not db.exists():
+        return JsonResponse({"error": "data not found", "message": "le groupe n'a pas été retrouvé"}, safe=False)
+    edt["groupe"] = db.fetch(first=True)['Nom']
+
+    # Il faut récupérer les cours des parents aussi
+    # On va refaire la requête avec un Union
+    # Etape 1: Récupérer les parents du groupe
+    # Groupe Parent: None --> 1 --> 13 --> 4 --> feuille;
+    # On connait la feuille, on remonte jusqu'à None
+    sql_get_group = "SELECT * FROM Groupe WHERE IdGroupe = %s"
+    all_groupes = []
+    current_groupe = db.run([sql_get_group, (idGroupe,)]).fetch(first=True)
+    all_groupes.append(str(current_groupe['IdGroupe']))
+
+    while current_groupe['IdGroupeSuperieur'] is not None:
+        db.run([sql_get_group, (current_groupe['IdGroupeSuperieur'],)])
+
+        if not db.exists():
+            return JsonResponse({"error": "data not found", "message": f"le groupe parent n'a pas été retrouvé, base de donnée corrompue: {current_groupe}"}, safe=False)
+        current_groupe = db.fetch(first=True)
+        all_groupes.append(str(current_groupe['IdGroupe']))
+    
+    # Etape 2: Récupérer les cours et les banques de cours
+    sql_get_parents_cours = f"""
+        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style
+        FROM Cours
+        JOIN Banque ON Cours.IdBanque = Banque.IdBanque
+        JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
+        JOIN TypeCours ON Banque.IdTypeCours = TypeCours.IdTypeCours
+        JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
+        JOIN Couleur ON Banque.IdCouleur = Couleur.IdCouleur 
+        JOIN Groupe ON Cours.IdGroupe = Groupe.IdGroupe
+        WHERE Groupe.IdGroupe IN ({", ".join(all_groupes)}) AND IdEDT = %s
+    """
+    cours = db.run([sql_get_parents_cours, (id_EDT,)]).fetch()
+
+    if not db.exists():
         return JsonResponse(edt, safe=False)
 
-    sqlDataBanqueCours = f"""
-		SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
-		FROM Banque
-		LEFT JOIN Utilisateur
-		ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
-		LEFT JOIN TypeCours
-		ON Banque.IdTypeCours = TypeCours.IdTypeCours
-		LEFT JOIN Ressource
-		ON Banque.IdRessource = Ressource.IdRessource
-		LEFT JOIN Couleur
-		ON Banque.IdCouleur = Couleur.IdCouleur
-        WHERE IdBanque IN ({", ".join(list(set([str(cours['idBanque']) for cours in dataCours])))})
-	"""
-    dataBanqueCours = db.run(sqlDataBanqueCours).fetch()
-    
-    for cours in dataCours:
-        cours = dict(cours)
-        banque = next((banque for banque in dataBanqueCours if banque["id"] == cours["idBanque"]), None)
-        if banque is not None:
-            cours["idEnseignant"] = banque["idEnseignant"]
-            cours["enseignant"] = banque["enseignant"]
-            cours["type"] = banque["type"]
-            cours["libelle"] = banque["libelle"]
-            cours["duree"] = banque["duree"]
-            cours["style"] = banque["style"]
+    days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
 
-            jour = cours["numeroJour"]
-            if jour == 0:
-                edt["Lundi"].append(cours)
-            elif jour == 1:
-                edt["Mardi"].append(cours)
-            elif jour == 2:
-                edt["Mercredi"].append(cours)
-            elif jour == 3:
-                edt["Jeudi"].append(cours)
-            elif jour == 4:
-                edt["Vendredi"].append(cours)
-            elif jour == 5:
-                edt["Samedi"].append(cours)
+    placed_courses = [ [None for _ in range(25)] for __ in range(6) ]
+    for cours in cours:
+        jour = days[cours["NumeroJour"]]
+        cours_slots = [slot for slot in range(cours["HeureDebut"], cours["HeureDebut"] + cours["Duree"])]
+        
+        warning = None
+        warning_message = None
+
+        not_free_slots = [slot for slot in cours_slots if placed_courses[cours["NumeroJour"]][slot] is not None]
+        if len(not_free_slots) > 0:
+            if any([not_free_slot['groupe'] == idGroupe for not_free_slot in not_free_slots]):
+                for not_free_slot in not_free_slots:
+                    edt['cours'][jour][not_free_slot['index']]['warning'] = "Cours en conflit"
+                    edt['cours'][jour][not_free_slot['index']]['warning_message'] = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette heure."
+                    continue
+            else:
+                cours_to_remove = [not_free_slot['index'] for not_free_slot in not_free_slots]
+                correct_day = []
+                placed_courses[cours["NumeroJour"]] = [None for _ in range(25)]
+                for index, other_cours in enumerate(edt['cours'][jour]):
+                    if index not in cours_to_remove:
+                        correct_day.append(other_cours)
+                        placed_courses[other_cours["NumeroJour"]][other_cours["HeureDebut"]] = {"groupe": other_cours["idGroupe"], "index": index}
+
+                edt['cours'][jour] = correct_day
+                warning = "Cours en conflit"
+                warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette heure."
+
+        for slot_index in cours_slots:
+            placed_courses[cours["NumeroJour"]][slot_index] = {"groupe": cours["IdGroupe"], "index": len(edt['cours'][jour])}
+
+        cours = {
+            "id": cours["IdCours"],
+            "idEnseignant": cours["IdUtilisateur"],
+            "enseignant": cours["enseignant"],
+            "type": cours["type"],
+            "libelle": cours["libelle"],
+            "heureDebut": cours["HeureDebut"],
+            "duree": cours["Duree"],
+            "style": cours["style"],
+            "warning": warning,
+            "warning_message": warning_message,
+        }
+        edt['cours'][jour].append(cours)
 
     db.close()
     return JsonResponse(edt, safe=False)
@@ -323,9 +366,9 @@ def save_edt(request, groupe, semaine, annee):
     else:
         edt_id = db.fetch(first=True)['IdEDT']
         sql = """
-            DELETE FROM Cours WHERE IdEDT = %s;
+            DELETE FROM Cours WHERE IdEDT = %s AND IdGroupe = %s;
         """
-        db.run([sql, (edt_id, )])
+        db.run([sql, (edt_id, groupe)])
 
     jours_id = {
         "Lundi": 0,
