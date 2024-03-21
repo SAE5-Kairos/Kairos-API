@@ -109,7 +109,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
                 placed_courses[cours["NumeroJour"]][slot_index] = {"groupe": cours["IdGroupe"], "index": len(edt['cours'][jour])}
 
             cours = {
-                "id": cours["IdCours"],
+                "id": "c" + str(cours["IdCours"]),
                 "idEnseignant": cours["IdUtilisateur"],
                 "idBanque": cours["IdBanque"],
                 "enseignant": cours["enseignant"],
@@ -240,7 +240,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
             placed_courses[cours["NumeroJour"]][slot_index] = {"groupe": cours["IdGroupe"], "index": len(edt['cours'][jour])}
 
         cours = {
-            "id": cours["IdCours"],
+            "id": "c" + str(cours["IdCours"]),
             "idEnseignant": cours["IdUtilisateur"],
             "idBanque": cours["IdBanque"],
             "enseignant": cours["enseignant"],
