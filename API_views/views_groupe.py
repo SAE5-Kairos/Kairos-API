@@ -24,7 +24,6 @@ def get_all_etudiants(request):
 		FROM Groupe as g1
 		LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle
 		WHERE g1.Nom NOT IN ('Professeur', 'Administrateur') 
-		AND g1.EstFinal = 1
     """).fetch()
     db.close()
     return JsonResponse(data, safe=False)
