@@ -27,7 +27,7 @@ def Login(request):
     global SECRET
     db = Database.get()
     sql = """
-        SELECT U.Prenom AS prenom, U.Nom AS nom, U.Email AS email, R.Label AS status, U.MotDePasse AS mdp, G.Nom AS groupe
+        SELECT U.Prenom AS prenom, U.Nom AS nom, U.Email AS email, R.Label AS status, U.MotDePasse AS mdp, G.Nom AS groupe, G.IdGroupe AS idGroupe
         FROM Utilisateur U
         LEFT JOIN RoleUtilisateur R ON U.IdRole = R.IdRoleUtilisateur
         LEFT JOIN Groupe G ON U.IdGroupe = G.IdGroupe
@@ -57,6 +57,7 @@ def Login(request):
       "email": data['email'],
       "status": data['status'],
       "groupe": data['groupe'],
+      "idGroupe": data['idGroupe'],
       "exp": int((datetime.datetime.now() + datetime.timedelta(hours=3)).timestamp())
     }
 
