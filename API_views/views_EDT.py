@@ -30,6 +30,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
         all_edt = {}
         for groupe in groupes:
             all_edt[groupe['IdGroupe']] = {
+                "idGroupe": groupe['IdGroupe'],
                 "salle": groupe['SalleNom'],
                 "groupe": groupe['GroupeNom'],
                 "cours": {
@@ -46,6 +47,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
     all_edt = {}
     for groupe in groupes:
         edt = {
+            "idGroupe": groupe['IdGroupe'],
             "salle": groupe['SalleNom'],
             "groupe": groupe['GroupeNom'],
             "cours": {

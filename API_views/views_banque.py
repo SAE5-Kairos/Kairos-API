@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 def GetAll(request):
     db = Database.get()
     data = db.run("""
-            SELECT IdBanque as id, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
+            SELECT IdBanque as id, IdBanque as idBanque, Banque.IdUtilisateur as idEnseignant, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant , Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
             FROM Banque
             LEFT JOIN Utilisateur
             ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -32,7 +32,7 @@ def by_id(request, code: int):
     db = Database.get()
     if request.method == "GET":
         sql = """
-        SELECT IdBanque as id, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant ,  Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
+        SELECT IdBanque as id, IdBanque as idBanque, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant ,  Banque.Duree as duree, TypeCours.Nom AS 'type', CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS 'style'
         FROM Banque
         LEFT JOIN Utilisateur
         ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
