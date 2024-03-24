@@ -61,7 +61,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
         }
         
         sql = """
-            SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style
+            SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, Ressource.Abreviation AS abreviation
             FROM Cours
             JOIN Banque ON Cours.IdBanque = Banque.IdBanque
             JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -117,6 +117,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
                 "enseignant": cours["enseignant"],
                 "type": cours["type"],
                 "libelle": cours["libelle"],
+                "abreviation": cours["abreviation"],
                 "heureDebut": cours["HeureDebut"],
                 "duree": cours["Duree"],
                 "style": cours["style"],
@@ -193,7 +194,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     
     # Etape 2: Récupérer les cours et les banques de cours
     sql_get_parents_cours = f"""
-        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Nom, ' ', Utilisateur.Prenom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style
+        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, Ressource.Abreviation AS abreviation
         FROM Cours
         JOIN Banque ON Cours.IdBanque = Banque.IdBanque
         JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -248,6 +249,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
             "enseignant": cours["enseignant"],
             "type": cours["type"],
             "libelle": cours["libelle"],
+            "abreviation": cours["abreviation"],
             "heureDebut": cours["HeureDebut"],
             "duree": cours["Duree"],
             "style": cours["style"],

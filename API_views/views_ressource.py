@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
-    data = db.run("SELECT IdRessource as id, Libelle as libelle, Nom as nom FROM Ressource").fetch()
+    data = db.run("SELECT IdRessource as id, Libelle as libelle, Nom as nom, Abreviation as abreviation FROM Ressource").fetch()
     db.close()
     return JsonResponse(data, safe=False)
 
@@ -83,11 +83,13 @@ def by_id(request, code: int):
     else:
         libelle = ""
         nom = ""
+        abreviation = ""
         try:
             body_unicode = request.body.decode('utf-8')
             body = json.loads(body_unicode)
             libelle = body['libelle']
             nom = body['nom']
+            abreviation = body['abreviation']
         except:
             return JsonResponse({"error": "You must send a body"}, safe=False)
 
@@ -95,10 +97,11 @@ def by_id(request, code: int):
         sql = """
                     UPDATE Ressource
                     SET Ressource.Libelle = %s,
-                        Ressource.Nom = %s
+                        Ressource.Nom = %s,
+                        Ressource.Abreviation = %s
                     WHERE Ressource.IdRessource = %s
                 """
-        nb_row_affected = db.run([sql, (libelle, nom, code)]).fetch(rowcount=True)
+        nb_row_affected = db.run([sql, (libelle, nom, abreviation, code)]).fetch(rowcount=True)
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
 
@@ -113,14 +116,15 @@ def add(request):
         body = json.loads(body_unicode)
         libelle = body['libelle']
         nom = body['nom']
+        abreviation = body['abreviation']
     except:
         return JsonResponse({"error": "You must send a body"}, safe=False)
 
     db = Database.get()
     sql = """
-        INSERT INTO Ressource (Libelle,Nom) VALUES
-        (%s,%s);
+        INSERT INTO Ressource (Libelle,Nom,Abreviation) VALUES
+        (%s,%s,%s);
     """
-    nb_row_affected = db.run([sql, (libelle,nom)]).fetch(rowcount=True)
+    nb_row_affected = db.run([sql, (libelle,nom,abreviation)]).fetch(rowcount=True)
     db.close()
     return JsonResponse(nb_row_affected == 1, safe=False)
