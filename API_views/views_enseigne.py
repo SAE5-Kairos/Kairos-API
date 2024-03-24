@@ -22,13 +22,17 @@ def add_enseigne(request):
     # Suppression des anciennes ressources
     db.run([sqlDelete, (idUtilisateur)])
 
-    # Ajout des nouvelles ressources
-    tempFormatValue = []
-    for idRessource in idRessources:
-        tempFormatValue.append((idUtilisateur, idRessource))
+    if len(idRessources) > 0:
+      # Ajout des nouvelles ressources
+      tempFormatValue = []
+      for idRessource in idRessources:
+          tempFormatValue.append((idUtilisateur, idRessource))
 
-    sqlRessources = "INSERT INTO Enseigne (IdUtilisateur, IdRessource) VALUES " + ",".join(["%s"] * len(tempFormatValue))
-    nb_row_affected_enseigne = db.run([sqlRessources, tempFormatValue]).fetch(rowcount=True)
+      sqlRessources = "INSERT INTO Enseigne (IdUtilisateur, IdRessource) VALUES " + ",".join(["%s"] * len(tempFormatValue))
+      nb_row_affected_enseigne = db.run([sqlRessources, tempFormatValue]).fetch(rowcount=True)
 
-    db.close()
-    return JsonResponse(nb_row_affected_enseigne == len(idRessources), safe=False)
+      db.close()
+      return JsonResponse(nb_row_affected_enseigne == len(idRessources), safe=False)
+    else:
+      db.close()
+      return JsonResponse(True, safe=False)
