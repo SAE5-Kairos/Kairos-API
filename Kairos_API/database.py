@@ -18,7 +18,8 @@ class Database:
         return self.host
     
     def connect(self):
-        while self.cnx is None:
+        nb_try = 0
+        while self.cnx is None and nb_try < 1:
             try:
                 if self.driver == 'mariadb':
                     self.cnx = mariadb.connect(user=self.user, database=self.database, password=self.password, host=self.host,
@@ -27,10 +28,14 @@ class Database:
                     self.cnx = pymysql.connect(user=self.user, database=self.database, password=self.password, host=self.host,
                                             port=int(self.port), autocommit=True)
             except Exception as e:
+                nb_try += 1
                 print(e)
                 print(f"Impossible de se connecter à la base de données {self.database} sur {self.host}:{self.port} avec l'utilisateur {self.user}.")
                 print("Réessai dans 5 secondes...")
                 time.sleep(3)
+        if nb_try == 5:
+            print('--> Impossible de se connecter à la base de données')
+            return None
         self.cursor = self.cnx.cursor()
     
     @staticmethod
@@ -111,48 +116,50 @@ class Database:
 
             self.cnx = None
 
+try:
+    # Initialisation de la db de génération d'emploi du temps
+    db_edt_generator = Database.get("edt_generator")
+    sql = """
+        DROP TABLE IF EXISTS COURS;
+    """
+    db_edt_generator.run(sql)
 
-# Initialisation de la db de génération d'emploi du temps
-db_edt_generator = Database.get("edt_generator")
-sql = """
-    DROP TABLE IF EXISTS COURS;
-"""
-db_edt_generator.run(sql)
+    sql = """
+        DROP TABLE IF EXISTS PHEROMONES;
+    """
+    db_edt_generator.run(sql)
 
-sql = """
-    DROP TABLE IF EXISTS PHEROMONES;
-"""
-db_edt_generator.run(sql)
+    sql = """
+    CREATE TABLE IF NOT EXISTS COURS (
+        ID INT AUTO_INCREMENT PRIMARY KEY,
+        COURS VARCHAR(10),
+        JOUR INT,
+        DEBUT INT,
+        INDEX idx_cours (COURS, JOUR, DEBUT)
+    );
+    """
+    db_edt_generator.run(sql)
 
-sql = """
-CREATE TABLE IF NOT EXISTS COURS (
-    ID INT AUTO_INCREMENT PRIMARY KEY,
-    COURS VARCHAR(10),
-    JOUR INT,
-    DEBUT INT,
-    INDEX idx_cours (COURS, JOUR, DEBUT)
-);
-"""
-db_edt_generator.run(sql)
+    sql = """
+    CREATE TABLE IF NOT EXISTS PHEROMONES (
+        ID_COURS INT,
+        PHEROMONE FLOAT,
+        BOOSTED TINYINT,
+        INDEX idx_pheromones (ID_COURS)
+    );
+    """
 
-sql = """
-CREATE TABLE IF NOT EXISTS PHEROMONES (
-    ID_COURS INT,
-    PHEROMONE FLOAT,
-    BOOSTED TINYINT,
-    INDEX idx_pheromones (ID_COURS)
-);
-"""
+    db_edt_generator.run(sql)
 
-db_edt_generator.run(sql)
+    sql = """
+    CREATE TABLE IF NOT EXISTS EDT_SIGNATURES (
+        SIGNATURE VARCHAR(528) PRIMARY KEY,
+        NOMBRE INT,
+        INDEX idx_signatures (SIGNATURE)
+    );
+    """
+    db_edt_generator.run(sql)
 
-sql = """
-CREATE TABLE IF NOT EXISTS EDT_SIGNATURES (
-    SIGNATURE VARCHAR(528) PRIMARY KEY,
-    NOMBRE INT,
-    INDEX idx_signatures (SIGNATURE)
-);
-"""
-db_edt_generator.run(sql)
-
-db_edt_generator.close()
+    db_edt_generator.close()
+except Exception as e:
+    print(e)

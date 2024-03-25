@@ -88,7 +88,7 @@ def generate_edt(request):
         Cours(id_prof, prof, duree / 2, id_banque, nom_cours, color)
     
     debut = datetime.datetime.now()
-    async def edt_generator_async(): await EDT_GENERATOR.generate_edts(25, int(len(Cours.ALL) * 2))
+    async def edt_generator_async(): await EDT_GENERATOR.generate_edts(15, int(len(Cours.ALL) * 2))
     ants = asyncio.run(edt_generator_async())
     print("> Durée totale: " + str(datetime.datetime.now() - debut))
     f = open('log.txt', 'a')
@@ -127,6 +127,8 @@ def generate_edt(request):
 @csrf_exempt
 @method_awaited("GET")
 def get_prof_dispo(request, id_prof, semaine, annee):
+    semaine -= 1 # Pour s'accorder avec la norme ISO du calendrier
+
     db = Database.get()
     sql = """
         SELECT 
@@ -142,7 +144,7 @@ def get_prof_dispo(request, id_prof, semaine, annee):
     """
     data = db.run([sql, (id_prof, semaine, semaine, annee, annee)]).fetch()
     db.close()
-
+    semaine -= 1
     dispo = [[ 1 for _ in range(24)] for __ in range(6)]
     for indispo in data:
         if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
@@ -169,6 +171,7 @@ def get_prof_dispo(request, id_prof, semaine, annee):
 @method_awaited("GET")
 def get_prof_dispo_all(request, semaine, annee):
     db = Database.get()
+    semaine -= 1 # Pour s'accorder avec la norme ISO du calendrier
     sqlIdUtilisateur= """
         SELECT 
             IdUtilisateur as idEnseignant, DateDebut, DateFin, WEEKDAY(DateDebut) AS JourDebut, WEEKDAY(DateFin) AS JourFin
