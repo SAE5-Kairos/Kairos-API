@@ -19,7 +19,7 @@ class Database:
     
     def connect(self):
         nb_try = 0
-        while self.cnx is None and nb_try < 1:
+        while self.cnx is None and nb_try < 5:
             try:
                 if self.driver == 'mariadb':
                     self.cnx = mariadb.connect(user=self.user, database=self.database, password=self.password, host=self.host,

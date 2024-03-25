@@ -60,6 +60,7 @@ def generate_edt(request):
                     IdUtilisateur = %s AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s 
                     AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
             """
+            cours_data['semaine'] -= 1 # Pour s'accorder avec la norme ISO du calendrier
             params = (id_prof, cours_data['semaine'], cours_data['semaine'], cours_data['annee'], cours_data['annee'])
             data = db.run([sql, params]).fetch()
             
