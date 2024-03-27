@@ -31,7 +31,7 @@ class Database:
                 nb_try += 1
                 print(e)
                 print(f"Impossible de se connecter à la base de données {self.database} sur {self.host}:{self.port} avec l'utilisateur {self.user}.")
-                print("Réessai dans 5 secondes...")
+                print("Réessai dans 3 secondes...")
                 time.sleep(3)
         if nb_try == 5:
             print('--> Impossible de se connecter à la base de données')
@@ -134,8 +134,8 @@ try:
         ID INT AUTO_INCREMENT PRIMARY KEY,
         COURS VARCHAR(10),
         JOUR INT,
-        DEBUT INT,
-        INDEX idx_cours (COURS, JOUR, DEBUT)
+        HEURE INT,
+        INDEX idx_cours (COURS, JOUR, HEURE)
     );
     """
     db_edt_generator.run(sql)
@@ -158,6 +158,39 @@ try:
         INDEX idx_signatures (SIGNATURE)
     );
     """
+    db_edt_generator.run(sql)
+
+    # V2 ALGO
+
+    sql = """
+    CREATE TABLE IF NOT EXISTS ALL_ASSOCIATIONS (
+        ID INT PRIMARY KEY AUTO_INCREMENT,
+        ID_COURS INT,
+        JOUR INT,
+        HEURE INT,
+        DAMAGES FLOAT,
+        INDEX idx_all_associations (ID_COURS, JOUR, HEURE)
+    );
+    """
+    db_edt_generator.run(sql)
+
+    sql = """
+    CREATE TABLE IF NOT EXISTS PHEROMONES2 (
+        ID_ASSOCIATION INT,
+        PHEROMONE FLOAT,
+        INDEX idx_pheromones2 (ID_ASSOCIATION)
+    );
+    """
+
+    db_edt_generator.run(sql)
+
+    sql = """
+    CREATE TABLE IF NOT EXISTS SHARED_DATA (
+        SCORE FLOAT,
+        ASSOCIATIONS VARCHAR(528),
+    );
+    """
+
     db_edt_generator.run(sql)
 
     db_edt_generator.close()

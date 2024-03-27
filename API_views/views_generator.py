@@ -2,12 +2,17 @@ import datetime
 import json, asyncio
 from django.shortcuts import render
 from django.http import JsonResponse
+
+from EDT_generator.V2.generateur import generate
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
 from EDT_generator.professeur import Professeur
 from EDT_generator.cours import Cours
 from EDT_generator.edt_generator import EDT_GENERATOR, Ant
+
+from EDT_generator.V2.professeur2 import Professeur2
+from EDT_generator.V2.cours2 import Cours2
 
 from Kairos_API.core import method_awaited
 
@@ -100,30 +105,77 @@ def generate_edt(request):
     week_date = f'{body[0]["annee"]}-W{body[0]["semaine"]}'
     week_date = datetime.datetime.strptime(week_date + '-1', "%Y-W%W-%w")
 
-    # version_edt = db.run(["SELECT COUNT(IdEDT) + 1 AS 'Version' FROM EDT WHERE DateEDT = %s", (week_date, )]).fetch(first=True)['Version']
-
-    # sql = """
-    #     INSERT INTO EDT (DateEDT, Version) VALUES
-    #     (%s,%s);
-    # """
-    
-    # db.run([sql, (week_date, version_edt)])
-    # edt_id = db.last_id()
-
-    # # Stocker les cours en base
-    # for course in EDT_GENERATOR.BETTER_EDT.placed_cours:
-    #     if course.debut is not None:
-    #         sql = """
-    #             INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe) 
-    #             VALUES (%s,%s,%s,%s,%s);
-    #         """
-
-    #         params = (course.jour, course.debut, course.banque, edt_id, 1)
-    #         db.run([sql, params])
-    #         course.name = db.last_id()
-    # db.close()
-
     return JsonResponse(EDT_GENERATOR.BETTER_EDT.jsonify(), safe=False)
+
+@csrf_exempt
+@method_awaited("POST")
+def generate_edt_v2(request):
+    body_unicode = request.body.decode('utf-8')
+    body = json.loads(body_unicode)
+
+    if len(body) == 0: raise Exception("[API][generate_edt]() -> Impossible de générer un emploi du temps sans cours")
+
+    sql_get_banque = """
+        SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' ', r.Nom) AS 'NomCours'
+        FROM 
+            Banque b
+            LEFT JOIN Couleur c ON  b.IdCouleur = c.IdCouleur
+            JOIN Ressource r ON b.IdRessource = r.IdRessource
+            LEFT JOIN Utilisateur u ON b.IdUtilisateur = u.IdUtilisateur
+        WHERE IdBanque = %s;
+    """
+
+    sql_prof_indispo = """
+        SELECT 
+            DateDebut, DateFin, 
+            WEEKDAY(DateDebut) AS JourDebut,
+            WEEKDAY(DateFin) AS JourFin
+        FROM 
+            Indisponibilite 
+        WHERE 
+            IdUtilisateur = %s 
+            AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
+            AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
+    """
+
+    db = Database.get()
+    
+    # 1. Unpack les données en Professeurs et Cours
+    for cours_data in body:
+        """cours_data = {'id_banque': 1, 'semaine': 1, 'annee': 2022}"""
+
+        db.run([sql_get_banque, (cours_data['id_banque'], )])
+        if db.exists():
+            banque_data = db.fetch(first=True)
+        else:
+            raise Exception(f"[API][generate_edt]() -> Aucune informations retrouvées pour l'id de banque {cours_data['id_banque']}")
+
+        id_prof = int(banque_data['IdUtilisateur'])
+        nom_prof = banque_data['Prenom'][0].upper() + ". " + banque_data['Nom'].capitalize()
+        duree = int(banque_data['Duree'])
+        color = banque_data['CouleurHexa'] or '#bbbbbb'
+        nom_cours = banque_data['NomCours'].capitalize()
+
+        # Créer le professeur si il n'existe pas
+        if id_prof not in Professeur2.ALL:
+            db.run([sql_prof_indispo, (id_prof, cours_data['semaine'], cours_data['semaine'], cours_data['annee'], cours_data['annee'])])
+            dispo = Professeur2.generate_dispo(cours_data['semaine'] - 1, db.fetch())
+            prof = Professeur2(id_prof, nom_prof, dispo)
+        else: prof = Professeur2.get(id_prof)
+
+        Cours2(professeur=prof, duree=duree, name=nom_cours, id_banque=cours_data['id_banque'], couleur=color, type_cours='TD')
+    db.close()
+
+    # 2. Générer les emplois du temps
+    db = Database.get('edt_generator')
+    db.run("DELETE FROM ALL_ASSOCIATIONS;")
+    db.run("DELETE FROM PHEROMONES2;")
+    db.close()
+    Cours2.save_associations()
+
+    edt = generate()
+
+    return JsonResponse(edt.jsonify(), safe=False)
 
 @csrf_exempt
 @method_awaited("GET")
@@ -146,25 +198,8 @@ def get_prof_dispo(request, id_prof, semaine, annee):
     data = db.run([sql, (id_prof, semaine, semaine, annee, annee)]).fetch()
     db.close()
     semaine -= 1
-    dispo = [[ 1 for _ in range(24)] for __ in range(6)]
-    for indispo in data:
-        if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
-
-        if indispo["DateDebut"].date() == indispo["DateFin"].date():
-            for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-                dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
-
-        else:
-            # Si l'absence est sur la même semaine
-            if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
-                for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
-                    dispo[day] = [ 0 for _ in range(24)]
-
-                for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-                    dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
-
-            # Si le prof est abs toute la semaine
-            else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
+    
+    dispo = Professeur2.generate_dispo(semaine, data)
 
     return JsonResponse(dispo, safe=False)
 

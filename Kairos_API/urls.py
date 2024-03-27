@@ -32,6 +32,7 @@ urlpatterns = [
 
     # Génerateur
     path('api/generate_edt/', views_generator.generate_edt),
+    path('api/generate_edt2/', views_generator.generate_edt_v2),
     path('api/get_prof_dispo/<int:semaine>/<int:annee>/', views_generator.get_prof_dispo_all),
     path('api/get_prof_dispo/<int:id_prof>/<int:semaine>/<int:annee>/', views_generator.get_prof_dispo),
 
