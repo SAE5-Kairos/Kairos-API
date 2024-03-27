@@ -1,10 +1,11 @@
+from EDT_generator.V2.professeur2 import Professeur2
 from Kairos_API.database import Database
 
 class Cours2:
     AUTO_INCREMENT = 0
     ALL: 'list[Cours2]' = []
 
-    def __init__(self, professeur, duree:int, name:str, id_banque:int, couleur, type_cours, _copy=False, _id=None) -> None:
+    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur, type_cours, _copy=False, _id=None) -> None:
         """
         professeur: Professeur2
         duree: int (nb créneaux de 30 minutes)
@@ -37,11 +38,16 @@ class Cours2:
                 return cours
         raise Exception(f"[Cours2][get]({id_cours}) -> Cours non trouvé")
 
+    def __hash__(self) -> int:
+        return (self.id, self.jour, self.heure).__hash__()
+
     def __eq__(self, __value: object) -> bool:
         if isinstance(__value, Cours2):
             return self.id == __value.id
         elif isinstance(__value, int):
             return self.id == __value
+        elif isinstance(__value, tuple):
+            return self.id == __value[0] and self.jour == __value[1] and self.heure == __value[2]
         else:
             return False
 
@@ -59,7 +65,7 @@ class Cours2:
             for cours in Cours2.ALL:
                 cours.save_associations()
             
-            Cours2.save_damages()
+            Cours2.save_creneaux()
             return
         
         db = Database.get("edt_generator")
@@ -77,7 +83,7 @@ class Cours2:
                     dispo_counter = 0
                     dispo_hour = heure + 1
 
-                if dispo_counter == self.duree:
+                if dispo_counter >= self.duree:
                     db.run([sql, (self.id, jour, dispo_hour)])
                     dispo_counter -= 1
                     dispo_hour += 1
@@ -87,7 +93,7 @@ class Cours2:
     def jsonify(self):
         # {'id': f'{cours.name}', 'idBanque': f'{cours.banque}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'abreviation': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 0 and not cours.display_name.startswith('Midi')
         return {
-            "id": self.id,
+            "id": str(self.id),
             'idBanque': str(self.id_banque),
             'idEnseignant': str(self.professeur.id),
             'enseignant': str(self.professeur.nom),
@@ -99,11 +105,11 @@ class Cours2:
         }
 
     @staticmethod
-    def save_damages():
+    def save_creneaux():
         db = Database.get("edt_generator")
         sql = """
             UPDATE ALL_ASSOCIATIONS
-            SET DAMAGES = (SELECT COUNT(*) FROM ALL_ASSOCIATIONS AS A WHERE A.JOUR = ALL_ASSOCIATIONS.JOUR AND A.HEURE = ALL_ASSOCIATIONS.HEURE) - 1;
+            SET NB_CRENEAUX = (SELECT COUNT(*) FROM ALL_ASSOCIATIONS AS A WHERE A.ID_COURS = ALL_ASSOCIATIONS.ID_COURS);
         """
         db.run(sql)
         db.close()

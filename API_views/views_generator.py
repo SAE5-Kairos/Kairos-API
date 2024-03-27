@@ -139,7 +139,9 @@ def generate_edt_v2(request):
     """
 
     db = Database.get()
-    
+    Cours2.ALL = []
+    Professeur2.ALL = []
+
     # 1. Unpack les données en Professeurs et Cours
     for cours_data in body:
         """cours_data = {'id_banque': 1, 'semaine': 1, 'annee': 2022}"""
@@ -158,15 +160,34 @@ def generate_edt_v2(request):
 
         # Créer le professeur si il n'existe pas
         if id_prof not in Professeur2.ALL:
-            db.run([sql_prof_indispo, (id_prof, cours_data['semaine'], cours_data['semaine'], cours_data['annee'], cours_data['annee'])])
-            dispo = Professeur2.generate_dispo(cours_data['semaine'] - 1, db.fetch())
+            db.run([sql_prof_indispo, (id_prof, cours_data['semaine'] - 1, cours_data['semaine'] - 1, cours_data['annee'], cours_data['annee'])])
+            dispo = Professeur2.generate_dispo(cours_data['semaine'], db.fetch())
             prof = Professeur2(id_prof, nom_prof, dispo)
         else: prof = Professeur2.get(id_prof)
 
         Cours2(professeur=prof, duree=duree, name=nom_cours, id_banque=cours_data['id_banque'], couleur=color, type_cours='TD')
     db.close()
 
-    # 2. Générer les emplois du temps
+    # 2. Créer les cours et profs du midi
+    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
+    midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
+    midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi
+    midi_jeudi = [[0 for _ in range(24)] for __ in range(6)]; midi_jeudi[3] = midi
+    midi_vendredi = [[0 for _ in range(24)] for __ in range(6)]; midi_vendredi[4] = midi
+    midi_lundi = Professeur2(-1, "Midi Lundi", midi_lundi)
+    midi_mardi = Professeur2(-2, "Midi Mardi", midi_mardi)
+    midi_mercredi = Professeur2(-3, "Midi Mercredi", midi_mercredi)
+    midi_jeudi = Professeur2(-4, "Midi Jeudi", midi_jeudi)
+    midi_vendredi = Professeur2(-5, "Midi Vendredi", midi_vendredi)
+
+    Cours2(midi_lundi, 2, 0, 0, "Midi Lundi", "#bbbbbb", "Midi")
+    Cours2(midi_mardi, 2, 0, 0, "Midi Mardi", "#bbbbbb", "Midi")
+    Cours2(midi_mercredi, 2, 0, 0, "Midi Mercredi", "#bbbbbb", "Midi")
+    Cours2(midi_jeudi, 2, 0, 0, "Midi Jeudi", "#bbbbbb", "Midi")
+    Cours2(midi_vendredi, 2, 0, 0, "Midi Vendredi", "#bbbbbb", "Midi")
+
+    # 3. Générer les emplois du temps
     db = Database.get('edt_generator')
     db.run("DELETE FROM ALL_ASSOCIATIONS;")
     db.run("DELETE FROM PHEROMONES2;")
@@ -230,25 +251,25 @@ def get_prof_dispo_all(request, semaine, annee):
             allIndispo[id_enseignant].append(indispo)
 
     for id_enseignant, data in allIndispo.items():
-        dispo = [[ 1 for _ in range(24)] for __ in range(6)]
-        for indispo in data:
-            if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
+        dispo = Professeur2.generate_dispo(semaine, data)
+        # for indispo in data:
+        #     if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
 
-            if indispo["DateDebut"].date() == indispo["DateFin"].date():
-                for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-                    dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
+        #     if indispo["DateDebut"].date() == indispo["DateFin"].date():
+        #         for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
+        #             dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
 
-            else:
-                # Si l'absence est sur la même semaine
-                if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
-                    for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
-                        dispo[day] = [ 0 for _ in range(24)]
+        #     else:
+        #         # Si l'absence est sur la même semaine
+        #         if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
+        #             for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
+        #                 dispo[day] = [ 0 for _ in range(24)]
 
-                    for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-                        dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
+        #             for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
+        #                 dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
 
-                # Si le prof est abs toute la semaine
-                else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
+        #         # Si le prof est abs toute la semaine
+        #         else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
 
         allIndispo[id_enseignant] = dispo
 

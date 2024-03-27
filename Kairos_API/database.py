@@ -125,17 +125,12 @@ try:
     db_edt_generator.run(sql)
 
     sql = """
-        DROP TABLE IF EXISTS PHEROMONES;
-    """
-    db_edt_generator.run(sql)
-
-    sql = """
     CREATE TABLE IF NOT EXISTS COURS (
         ID INT AUTO_INCREMENT PRIMARY KEY,
         COURS VARCHAR(10),
         JOUR INT,
-        HEURE INT,
-        INDEX idx_cours (COURS, JOUR, HEURE)
+        DEBUT INT,
+        INDEX idx_cours (COURS, JOUR, DEBUT)
     );
     """
     db_edt_generator.run(sql)
@@ -163,31 +158,23 @@ try:
     # V2 ALGO
 
     sql = """
-    CREATE TABLE IF NOT EXISTS ALL_ASSOCIATIONS (
+    CREATE OR REPLACE TABLE ALL_ASSOCIATIONS (
         ID INT PRIMARY KEY AUTO_INCREMENT,
         ID_COURS INT,
         JOUR INT,
         HEURE INT,
-        DAMAGES FLOAT,
+        NB_CRENEAUX INT,
         INDEX idx_all_associations (ID_COURS, JOUR, HEURE)
     );
     """
     db_edt_generator.run(sql)
 
     sql = """
-    CREATE TABLE IF NOT EXISTS PHEROMONES2 (
+    CREATE OR REPLACE TABLE PHEROMONES2 (
         ID_ASSOCIATION INT,
         PHEROMONE FLOAT,
+        FROM_SUPER_WORKER TINYINT DEFAULT 0,
         INDEX idx_pheromones2 (ID_ASSOCIATION)
-    );
-    """
-
-    db_edt_generator.run(sql)
-
-    sql = """
-    CREATE TABLE IF NOT EXISTS SHARED_DATA (
-        SCORE FLOAT,
-        ASSOCIATIONS VARCHAR(528),
     );
     """
 
