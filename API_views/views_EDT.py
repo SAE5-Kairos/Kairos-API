@@ -61,7 +61,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
         }
         
         sql = """
-            SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, Ressource.Abreviation AS abreviation
+            SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
             FROM Cours
             JOIN Banque ON Cours.IdBanque = Banque.IdBanque
             JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -194,7 +194,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     
     # Etape 2: Récupérer les cours et les banques de cours
     sql_get_parents_cours = f"""
-        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, Ressource.Abreviation AS abreviation
+        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
         FROM Cours
         JOIN Banque ON Cours.IdBanque = Banque.IdBanque
         JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -255,6 +255,73 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
             "style": cours["style"],
             "warning": warning,
             "warning_message": warning_message,
+        }
+        edt['cours'][jour].append(cours)
+
+    db.close()
+    return JsonResponse(edt, safe=False)
+
+
+@csrf_exempt
+@method_awaited("GET")
+def by_enseignant(request, semaine: int, annee: int, idProf: int):
+    db = Database.get()
+    
+    edt = {
+        "cours": {
+            "Lundi": [],
+            "Mardi": [],
+            "Mercredi": [],
+            "Jeudi": [],
+            "Vendredi": [],
+            "Samedi": []
+        }
+    }
+    
+	# Récupération de l'ID EDT
+    sqlDateEDT = "SELECT IdEDT as id FROM EDT WHERE Semaine = %s AND Annee = %s"
+    db.run([sqlDateEDT, (semaine, annee)])
+    	
+    if db.exists():
+        id_EDT = db.fetch(first=True)['id']
+    else:
+        db.close()
+        return JsonResponse(edt, safe=False)
+    
+    # Etape 1: Récupérer les cours et les banques de cours
+    sql_get_parents_cours = f"""
+        SELECT IdCours, IdEDT, Groupe.nom as gnom, Salle.nom as snom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
+        FROM Cours
+        JOIN Banque ON Cours.IdBanque = Banque.IdBanque
+        JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
+        JOIN TypeCours ON Banque.IdTypeCours = TypeCours.IdTypeCours
+        JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
+        JOIN Couleur ON Banque.IdCouleur = Couleur.IdCouleur 
+        JOIN Groupe ON Cours.IdGroupe = Groupe.IdGroupe
+        JOIN Salle ON Groupe.IdSalle = Salle.IdSalle
+        WHERE IdEDT = %s AND Utilisateur.IdUtilisateur = %s
+    """
+    cours = db.run([sql_get_parents_cours, (id_EDT, idProf,)]).fetch()
+
+    if not db.exists():
+        return JsonResponse(edt, safe=False)
+
+    days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+
+    for cours in cours:
+        jour = days[cours["NumeroJour"]]
+
+        cours = {
+            "id": "c" + str(cours["IdCours"]),
+            "idBanque": cours["IdBanque"],
+            "groupe": cours["gnom"],
+            "salle": cours["snom"],
+            "type": cours["type"],
+            "libelle": cours["libelle"],
+            "abreviation": cours["abreviation"],
+            "heureDebut": cours["HeureDebut"],
+            "duree": cours["Duree"],
+            "style": cours["style"],
         }
         edt['cours'][jour].append(cours)
 
