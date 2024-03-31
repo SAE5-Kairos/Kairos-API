@@ -52,7 +52,7 @@ class Cours2:
             return False
 
     def __str__(self) -> str:
-        return f"Cours2<{self.id}>: {self.duree}"
+        return f"Cours2<{self.id}>: {self.duree}*30min"
 
     def __repr__(self) -> str:
         return f"C{self.id}"

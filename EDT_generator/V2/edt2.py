@@ -4,7 +4,7 @@ from EDT_generator.V2.cours2 import Cours2
 
 class EDT2:
     SAMEDI_MALUS = 5
-    MIDI_BONUS = 12
+    MIDI_BONUS = 15
 
     def __init__(self, _from_cours=None):
         self.cours: 'list[Cours2]' = []
@@ -25,9 +25,9 @@ class EDT2:
         # 2. Vérifier que le prof est disponible et que le cours ne chevauche pas un autre
         is_free = self.is_free(jour, heure, cours)
         if is_free == -1:
-            raise Exception(f"[EDT][add_cours]({cours}, {jour}, {heure}) -> Cours impossible à ajouter; Chevauchement \n{self.week[jour]}")
+            raise Exception(f"[EDT][add_cours]({cours}, j:{jour}, h:{heure}) -> Cours impossible à ajouter; Chevauchement \n{self.week[jour]}")
         if is_free == -2:
-            raise Exception(f"[EDT][add_cours]({cours}, {jour}, {heure}) -> Cours impossible à ajouter; Indisponibilité du professeur")
+            raise Exception(f"[EDT][add_cours]({cours}, j:{jour}, h:{heure}) -> Cours impossible à ajouter; Indisponibilité du professeur")
         
         # 3. Ajouter le cours
         cours = cours.copy()

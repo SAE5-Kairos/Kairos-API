@@ -66,7 +66,8 @@ class Worker:
         self.gamma = gamma      # Coefficient d'exploration
         self.epsilon = epsilon  # Coefficient de phéromones
 
-        self.omega = None       # Univers des possibilitées
+        self.omega = []       # Univers des possibilitées
+        self.available_slots: 'dict[int, list]' = {} # Dictionnaire des slots pour amélioration par voisinage
 
         db = Database.get("edt_generator")
         min_pheromone = db.run("SELECT IFNULL(AVG(PHEROMONE), 0) AS 'P' FROM PHEROMONES2;").fetch(first=True)['P'] * Manager.COEF_GAMMA_OVER_EPSILON
@@ -76,11 +77,21 @@ class Worker:
                  LEFT JOIN PHEROMONES2 ON ID = ID_ASSOCIATION
             GROUP BY ID, ID_COURS, JOUR, HEURE, NB_CRENEAUX;
         """
-        try:
-            max_creneaux = db.run("SELECT MAX(NB_CRENEAUX) AS MAX FROM ALL_ASSOCIATIONS").fetch(first=True)['MAX']
-            self.omega = [{'ID': node['ID'], 'COURS': Cours2.get(node['ID_COURS']), 'JOUR': node['JOUR'], 'HEURE': node['HEURE'], 'PERCENT_CRENEAUX': 1 - (node['NB_CRENEAUX'] / max_creneaux), 'PHEROMONE': node['PHEROMONE']} for node in db.run(sql).fetch()]
-        except Exception as e:
-            print("Worker:", e)
+        max_creneaux = db.run("SELECT MAX(NB_CRENEAUX) AS MAX FROM ALL_ASSOCIATIONS").fetch(first=True)['MAX']
+        for node in db.run(sql).fetch():
+            cours = Cours2.get(node['ID_COURS'])
+            omega_node = {
+                'ID': node['ID'], 'COURS': cours, 
+                'JOUR': node['JOUR'], 'HEURE': node['HEURE'], 
+                'PERCENT_CRENEAUX': 1 - (node['NB_CRENEAUX'] / max_creneaux), 
+                'PHEROMONE': node['PHEROMONE']
+            }
+            self.omega.append(omega_node)
+
+            if cours not in self.available_slots:
+                self.available_slots[cours.id] = []
+            self.available_slots[cours.id].append({'JOUR': node['JOUR'], 'HEURE': node['HEURE'], 'ID': node['ID'], 'COURS': cours})
+
         db.close()
 
     async def run(self):
@@ -92,7 +103,7 @@ class Worker:
                 self.edt.add_cours(node['COURS'], node['JOUR'], node['HEURE'])
                 self.rm_from_omega(node['JOUR'], node['HEURE'], node['COURS'].duree, node['COURS'])
             except Exception as e:
-                print("Worker:", e)
+                print("Worker running:", e)
                 break
 
         # Sauvegarder les Phéromones
@@ -106,6 +117,11 @@ class Worker:
         """
 
         score = self.edt.get_score()
+        try: self.upgrade_edt_with_local_search()
+        except Exception as e: print("Worker local search:", e)
+        #print("Worker score:", self.edt.get_score() - score)
+        score = self.edt.get_score()
+
         for cours in self.edt.cours:
             assoc_id = db.run([sql_get_association, (cours.id, cours.jour, cours.heure)]).fetch(first=True)['ID']
             db.run([sql_insert_pheromone, (assoc_id, score)])
@@ -120,6 +136,11 @@ class Worker:
         return True
 
     def choose_node(self):
+        """
+        Renvoi un noeud en fonction de la probabilité de chaque noeud (ou None si aucun noeud n'a été choisi)
+        Noeud = { 'ID': int, 'COURS': Cours2, 'JOUR': int, 'HEURE': int, 'PERCENT_CRENEAUX': float, 'PHEROMONE': float }
+        :return: None si aucun noeud n'a été choisi
+        """
         if not self.omega:
             return None
         
@@ -159,6 +180,87 @@ class Worker:
             self.new_omega.append(node)
         self.omega = self.new_omega
 
+        # On mets à jour les slots disponibles sans retirer le cours (pour amélioration par voisinage)
+        for other_cours_id in self.available_slots:
+            self.available_slots[other_cours_id] = [slot for slot in self.available_slots[other_cours_id] if slot['JOUR'] != jour or slot['HEURE'] not in heures]
+
+
+    def upgrade_edt_with_local_search(self):
+        self.edt.get_score()
+        db = Database.get("edt_generator")
+
+        score = self.edt.get_score()
+        sql_insert_pheromone = """
+            INSERT INTO PHEROMONES2 (ID_ASSOCIATION, PHEROMONE, FROM_SUPER_WORKER) VALUES (%s, %s, 1)
+        """
+
+        for cours in self.edt.cours.copy():
+            if not cours or not self.available_slots[cours.id]:
+                continue
+
+            # Historiques des déplacements
+            # 1. -> retirer le main.cours
+            # 2. Pour chaque association possible,
+            #    2.1 -> ajouter le main.cours à l'association
+            #    2.2 -> Compléter l'edt avec choose_node
+            #        2.2.1 -> Ajouter le nodes à la liste des associations utilisées
+            #    2.3 -> Retirer les nodes ajoutés
+            #    2.4 -> Retirer le main.cours déplacé de l'association
+            # 3. -> Reposer le main.cours à sa place initiale si aucune association n'a été trouvée
+            
+            # 1. Libérer le slots pour essayer des nouvelles associations
+            self.edt.remove_cours(cours)
+            best_assocs = []
+
+            # Tester toutes les possibilitées pour un cours
+            for assoc in self.available_slots[cours.id]:
+                if self.edt.is_free(assoc['JOUR'], assoc['HEURE'], cours) != 1:
+                    continue
+                
+                # 2. Créer une nouvelle association
+                try: self.edt.add_cours(cours, assoc['JOUR'], assoc['HEURE'])
+                except Exception as e:
+                    print("Upgrade EDT 2: Impossible d'ajouter le cours", e)
+
+                # 3. Essayer de faire des associations avec les autres cours
+                node = self.choose_node()
+                new_assocs = []
+                while node is not None:
+                    self.edt.add_cours(node['COURS'], node['JOUR'], node['HEURE'])
+                    new_assocs.append((node['JOUR'], node['HEURE'], node['COURS'], node['ID']))
+                    node = self.choose_node()
+                
+                # 4. Vérifier si la nouvelle association est meilleure
+                new_score = self.edt.get_score()
+                if new_score > score:
+                    score = new_score
+                    best_assocs = new_assocs.copy()
+                    best_assocs.append(assoc)
+
+                # 5. Enregister les Phéromones des nouvelles associations
+                # 6. Retirer les nouvelles associations
+                for new_assoc in new_assocs:
+                    #db.run([sql_insert_pheromone, (new_assoc[3], new_score)])
+                    tmp_cours: Cours2 = new_assoc[2].copy()
+                    tmp_cours.jour = new_assoc[0]
+                    tmp_cours.heure = new_assoc[1]
+                    self.edt.remove_cours(tmp_cours)
+                
+                # 7. Retirer le cours ajouté
+                #db.run([sql_insert_pheromone, (assoc['ID'], new_score)])
+                main_cours = cours.copy()
+                main_cours.jour = assoc['JOUR']
+                main_cours.heure = assoc['HEURE']
+                self.edt.remove_cours(main_cours)
+    
+            # 7. Ajouter la meilleure association
+            if len(best_assocs) > 0:
+                for best_assoc in best_assocs:
+                    self.edt.add_cours(cours, best_assoc['JOUR'], best_assoc['HEURE'])
+            else:
+                self.edt.add_cours(cours, cours.jour, cours.heure)
+        db.close()
+       
 
 class SuperWorker:
 
