@@ -220,8 +220,12 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
         warning_message = None
 
         not_free_slots = [slot for slot in cours_slots if placed_courses[cours["NumeroJour"]][slot] is not None]
+        conflicts_groupes = [placed_courses[cours["NumeroJour"]][slot]['groupe'] for slot in not_free_slots]
+        """Liste des slots déjà utilisés par un autre cours [4, 5] superposé à cours_slots"""
         if len(not_free_slots) > 0:
-            if any([not_free_slot['groupe'] == idGroupe for not_free_slot in not_free_slots]):
+
+            # On cherche à savoir si le cours a priorité (enfant) ou si à l'inverse avec des parents
+            if any([conflict_groupe == idGroupe for conflict_groupe in conflicts_groupes]):
                 for not_free_slot in not_free_slots:
                     edt['cours'][jour][not_free_slot['index']]['warning'] = "Cours en conflit"
                     edt['cours'][jour][not_free_slot['index']]['warning_message'] = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette heure."
@@ -255,6 +259,203 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
             "style": cours["style"],
             "warning": warning,
             "warning_message": warning_message,
+        }
+        edt['cours'][jour].append(cours)
+
+    db.close()
+    return JsonResponse(edt, safe=False)
+
+# Get by Semaine, Annee, idGroupe
+@csrf_exempt
+@method_awaited("PUT")
+def by_list_groupe(request, semaine: int, annee: int):
+    # {
+    #     "listGroupe": [1, 10, 16, 17]
+    # }
+    listGroupe = ""
+    try:
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        listGroupe = body['listGroupe']
+    except:
+        return JsonResponse({"error": "You must send a body"}, safe=False)
+
+    db = Database.get()
+
+    # Récupération de la salle
+    formatListGroupe = ', '.join([str(int(groupe)) for groupe in listGroupe])
+    sql_get_salle = f"SELECT IdGroupe, s.Nom as snom FROM Groupe as g1 LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle WHERE g1.IdGroupe IN ({formatListGroupe})"
+    salle_name = db.run(sql_get_salle).fetch()
+    
+    # Récupération des groupes
+    sql_get_groupe = f"SELECT * FROM Groupe WHERE IdGroupe IN ({formatListGroupe})"
+    groupes_data = db.run(sql_get_groupe).fetch()
+
+    all_edt = {}
+    for groupe in groupes_data:
+        all_edt[groupe['IdGroupe']] = {
+            "idGroupe": groupe['IdGroupe'],
+            "salle": next((item for item in salle_name if item["IdGroupe"] == groupe["IdGroupe"]), None)['snom'],
+            "groupe": groupe['Nom'],
+            "cours": {
+                "Lundi": [],
+                "Mardi": [],
+                "Mercredi": [],
+                "Jeudi": [],
+                "Vendredi": [],
+                "Samedi": []
+            }
+        }
+    
+	# Récupération de l'ID EDT
+    sqlDateEDT = "SELECT IdEDT as id FROM EDT WHERE Semaine = %s AND Annee = %s"
+    db.run([sqlDateEDT, (semaine, annee)])
+    	
+    if db.exists():
+        id_EDT = db.fetch(first=True)['id']
+    else:
+        db.close()
+        return JsonResponse(all_edt, safe=False)
+
+    # Etape 2: Récupérer les cours et les banques de cours
+    sql_get_cours = f"""
+        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
+        FROM Cours
+        JOIN Banque ON Cours.IdBanque = Banque.IdBanque
+        JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
+        JOIN TypeCours ON Banque.IdTypeCours = TypeCours.IdTypeCours
+        JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
+        JOIN Couleur ON Banque.IdCouleur = Couleur.IdCouleur 
+        JOIN Groupe ON Cours.IdGroupe = Groupe.IdGroupe
+        WHERE Groupe.IdGroupe IN ({formatListGroupe}) AND IdEDT = %s
+    """
+    all_cours = db.run([sql_get_cours, (id_EDT,)]).fetch()
+
+    if not db.exists():
+        return JsonResponse(all_edt, safe=False)
+
+    days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+
+    for groupe in groupes_data:
+        placed_courses = [ [None for _ in range(25)] for __ in range(6) ]
+        idGroupe = groupe['IdGroupe']
+        for cours in all_cours:
+            jour = days[cours["NumeroJour"]]
+            cours_slots = [slot for slot in range(cours["HeureDebut"], cours["HeureDebut"] + cours["Duree"])]
+            """Liste des slots utilisés par le cours [3, 4, 5, 6]"""
+            
+            warning = None
+            warning_message = None
+
+            not_free_slots = [slot for slot in cours_slots if placed_courses[cours["NumeroJour"]][slot] is not None]
+            conflicts_groupes = [placed_courses[cours["NumeroJour"]][slot]['groupe'] for slot in not_free_slots]
+            """Liste des slots déjà utilisés par un autre cours [4, 5] superposé à cours_slots"""
+            if len(not_free_slots) > 0:
+                # On cherche à savoir si le cours a priorité (enfant) ou si à l'inverse avec des parents
+                if any([conflict_groupe == idGroupe for conflict_groupe in conflicts_groupes]):
+                    for other_cours in all_edt[idGroupe]['cours'][jour]:
+                        other_cours_hours = [slot for slot in range(other_cours["heureDebut"], other_cours["heureDebut"] + other_cours["duree"])]
+                        if any([slot in other_cours_hours for slot in not_free_slots]):
+                            other_cours['warning'] = "Cours en conflit"
+                            other_cours['warning_message'] = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette heure."
+                else:
+                    correct_day = []
+                    placed_courses[cours["NumeroJour"]] = [None for _ in range(25)]
+
+                    for index, other_cours in enumerate(all_edt[idGroupe]['cours'][jour]):
+                        other_cours_hours = [slot for slot in range(other_cours["heureDebut"], other_cours["heureDebut"] + other_cours["duree"])]
+                        if any([slot in other_cours_hours for slot in not_free_slots]):
+                            correct_day.append(other_cours)
+                            placed_courses[cours["NumeroJour"]][other_cours["heureDebut"]] = {"groupe": idGroupe, "index": index}
+
+                    all_edt[idGroupe]['cours'][jour] = correct_day
+                    warning = "Cours en conflit"
+                    warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette heure."
+
+            for slot_index in cours_slots:
+                placed_courses[cours["NumeroJour"]][slot_index] = {"groupe": cours["IdGroupe"], "index": len(all_edt[idGroupe]['cours'][jour])}
+
+            cours = {
+                "id": "c" + str(cours["IdCours"]),
+                "idEnseignant": cours["IdUtilisateur"],
+                "idBanque": cours["IdBanque"],
+                "enseignant": cours["enseignant"],
+                "type": cours["type"],
+                "libelle": cours["libelle"],
+                "abreviation": cours["abreviation"],
+                "heureDebut": cours["HeureDebut"],
+                "duree": cours["Duree"],
+                "style": cours["style"],
+                "warning": warning,
+                "warning_message": warning_message,
+            }
+            all_edt[idGroupe]['cours'][jour].append(cours)
+
+    db.close()
+    return JsonResponse(all_edt, safe=False)
+
+
+@csrf_exempt
+@method_awaited("GET")
+def by_enseignant(request, semaine: int, annee: int, idProf: int):
+    db = Database.get()
+    
+    edt = {
+        "cours": {
+            "Lundi": [],
+            "Mardi": [],
+            "Mercredi": [],
+            "Jeudi": [],
+            "Vendredi": [],
+            "Samedi": []
+        }
+    }
+    
+	# Récupération de l'ID EDT
+    sqlDateEDT = "SELECT IdEDT as id FROM EDT WHERE Semaine = %s AND Annee = %s"
+    db.run([sqlDateEDT, (semaine, annee)])
+    	
+    if db.exists():
+        id_EDT = db.fetch(first=True)['id']
+    else:
+        db.close()
+        return JsonResponse(edt, safe=False)
+    
+    # Etape 1: Récupérer les cours et les banques de cours
+    sql_get_parents_cours = f"""
+        SELECT IdCours, IdEDT, Groupe.nom as gnom, Salle.nom as snom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
+        FROM Cours
+        JOIN Banque ON Cours.IdBanque = Banque.IdBanque
+        JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
+        JOIN TypeCours ON Banque.IdTypeCours = TypeCours.IdTypeCours
+        JOIN Ressource ON Banque.IdRessource = Ressource.IdRessource
+        JOIN Couleur ON Banque.IdCouleur = Couleur.IdCouleur 
+        JOIN Groupe ON Cours.IdGroupe = Groupe.IdGroupe
+        JOIN Salle ON Groupe.IdSalle = Salle.IdSalle
+        WHERE IdEDT = %s AND Utilisateur.IdUtilisateur = %s
+    """
+    cours = db.run([sql_get_parents_cours, (id_EDT, idProf,)]).fetch()
+
+    if not db.exists():
+        return JsonResponse(edt, safe=False)
+
+    days = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"]
+
+    for cours in cours:
+        jour = days[cours["NumeroJour"]]
+
+        cours = {
+            "id": "c" + str(cours["IdCours"]),
+            "enseignant": cours["enseignant"],
+            "idBanque": cours["IdBanque"],
+            "groupe": cours["gnom"],
+            "salle": cours["snom"],
+            "type": cours["type"],
+            "libelle": cours["libelle"],
+            "abreviation": cours["abreviation"],
+            "heureDebut": cours["HeureDebut"],
+            "duree": cours["Duree"],
+            "style": cours["style"],
         }
         edt['cours'][jour].append(cours)
 
