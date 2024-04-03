@@ -20,13 +20,36 @@ def get_all(request):
 def get_all_etudiants(request):
     db = Database.get()
     data = db.run("""
-		SELECT g1.IdGroupe as id, g1.Nom as gnom, s.Nom as snom
+		SELECT g1.IdGroupe as id, g1.Nom as gnom, s.Nom as snom, IdGroupeSuperieur as id_superieur
 		FROM Groupe as g1
 		LEFT JOIN Salle as s ON g1.IdSalle = s.IdSalle
 		WHERE g1.Nom NOT IN ('Professeur', 'Administrateur') 
     """).fetch()
     db.close()
-    return JsonResponse(data, safe=False)
+
+    #   Récupération des groupes dans ce format
+    # 
+    #   listGroupes: [
+    #     {"id": 1, "nom": "Groupe 1", children: [{"id": 1, "nom": "Groupe 1.1", children: []}]},
+    #   ]
+    #
+    #   On va donc créer une liste de groupes, puis pour chaque groupe, on va chercher les enfants
+    #   et les ajouter à la liste des enfants du groupe parent
+    listGroupes = []
+    for groupe in data:
+        groupe["children"] = []
+        listGroupes.append(groupe)
+
+    for groupe in listGroupes:
+        for child in listGroupes:
+            if child["id_superieur"] == groupe["id"]:
+                groupe["children"].append(child)
+
+    # On va maintenant supprimer les groupes qui ont un parent
+    # pour ne garder que les groupes de plus haut niveau
+    listGroupes = [groupe for groupe in listGroupes if groupe["id_superieur"] is None]
+
+    return JsonResponse(listGroupes, safe=False)
 
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt

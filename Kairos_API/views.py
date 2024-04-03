@@ -55,6 +55,7 @@ def home(request):
         {"path": "emploidutemps/<int:code>/", "GET": ""},
         {"path": "emploidutemps/<int:semaine>/<int:annee>/", "GET": ""},
         {"path": "emploidutemps/<int:semaine>/<int:annee>/<int:idGroupe>/", "GET": ""},
+        {"path": "emploidutemps/liste/<int:semaine>/<int:annee>/", "PUT": "'listGroupe': [int]"},
         {"path": "emploidutemps/<int:code>/", "PUT": "{'date': string,'version': int}"},
         {"path": "emploidutemps/<int:code>/", "DELETE": ""},
         {"path": "emploidutemps/", "POST": "{'date': string,'version': int}"},

@@ -27,7 +27,7 @@ def Login(request):
     global SECRET
     db = Database.get()
     sql = """
-        SELECT U.Prenom AS prenom, U.Nom AS nom, U.Email AS email, R.Label AS status, U.MotDePasse AS mdp, G.Nom AS groupe, G.IdGroupe AS idGroupe
+        SELECT U.idUtilisateur as id, U.Prenom AS prenom, U.Nom AS nom, U.Email AS email, R.Label AS status, U.MotDePasse AS mdp, G.Nom AS groupe, G.IdGroupe AS idGroupe
         FROM Utilisateur U
         LEFT JOIN RoleUtilisateur R ON U.IdRole = R.IdRoleUtilisateur
         LEFT JOIN Groupe G ON U.IdGroupe = G.IdGroupe
@@ -52,6 +52,7 @@ def Login(request):
 
     # Token valide 3h
     payload = {
+      "id": data['id'],
       "prenom": data['prenom'],
       "nom": data['nom'],
       "email": data['email'],
