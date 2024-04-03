@@ -1,7 +1,8 @@
+from typing import Union
 from django.http import JsonResponse
 
 
-def method_awaited(method: str or list):
+def method_awaited(method: Union[str, list]):
     def decorator_func(f):
         def warpper(*args, **kw):
             if args[0].method != method and type(method) != list or type(method) == list and args[0].method not in method:
