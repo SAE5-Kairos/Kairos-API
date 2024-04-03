@@ -1,6 +1,9 @@
 import json
 from django.http import JsonResponse
 
+from EDT_generator.V2.edt2 import EDT2
+from EDT_generator.V2.cours2 import Cours2
+from EDT_generator.V2.professeur2 import Professeur2
 from Kairos_API.core import method_awaited
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
@@ -644,12 +647,50 @@ def save_edt(request, groupe, semaine, annee):
         "Samedi": 5
     }
 
+    edt = EDT2()
+
     sql = """
         INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe)
         VALUES (%s, %s, %s, %s, %s);
     """
     for jour, cours in body.items():
         for cours_data in cours:
+            Cours2(professeur=Professeur2(len(Professeur2.ALL)), 
+                duree=cours_data['duree'], 
+                name=cours_data['libelle'], 
+                id_banque=cours_data['idBanque'], 
+                couleur=cours_data['style'], 
+                type_cours=cours_data['type']
+            )
+            edt.add_cours(Cours2.ALL[-1], jours_id[jour], cours_data['heureDebut'])
             db.run([sql, (jours_id[jour], cours_data['heureDebut'], cours_data['idBanque'], edt_id, groupe)])
     db.close()
-    return JsonResponse(True, safe=False)
+
+    # Ajouter les cours du midi pour l'objet edt
+    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
+    midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
+    midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi
+    midi_jeudi = [[0 for _ in range(24)] for __ in range(6)]; midi_jeudi[3] = midi
+    midi_vendredi = [[0 for _ in range(24)] for __ in range(6)]; midi_vendredi[4] = midi
+    midi_lundi = Professeur2(-1, "Midi Lundi", midi_lundi)
+    midi_mardi = Professeur2(-2, "Midi Mardi", midi_mardi)
+    midi_mercredi = Professeur2(-3, "Midi Mercredi", midi_mercredi)
+    midi_jeudi = Professeur2(-4, "Midi Jeudi", midi_jeudi)
+    midi_vendredi = Professeur2(-5, "Midi Vendredi", midi_vendredi)
+
+    midi_hours = []
+    midi_hours.append(Cours2(midi_lundi, 2, "Midi Lundi", 0, "#bbbbbb", "Midi"))
+    midi_hours.append(Cours2(midi_mardi, 2, "Midi Mardi", 0, "#bbbbbb", "Midi"))
+    midi_hours.append(Cours2(midi_mercredi, 2, "Midi Mercredi", 0, "#bbbbbb", "Midi"))
+    midi_hours.append(Cours2(midi_jeudi, 2, "Midi Jeudi", 0, "#bbbbbb", "Midi"))
+    midi_hours.append(Cours2(midi_vendredi, 2, "Midi Vendredi", 0, "#bbbbbb", "Midi"))
+
+    # Il faut placer les heures du midi si possible
+    for jour, midi_hour in enumerate(midi_hours):
+        for debut in range(6, 14):
+            if edt.is_free(jour, debut, midi_hour) == 1:
+                edt.add_cours(midi_hour, jour, debut)
+                break
+
+    return JsonResponse({"score": edt.get_score(), "nb_cours": len(edt.cours)}, safe=False)
