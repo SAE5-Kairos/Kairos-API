@@ -181,11 +181,11 @@ def generate_edt_v2(request):
     midi_jeudi = Professeur2(-4, "Midi Jeudi", midi_jeudi)
     midi_vendredi = Professeur2(-5, "Midi Vendredi", midi_vendredi)
 
-    Cours2(midi_lundi, 2, 0, 0, "Midi Lundi", "#bbbbbb", "Midi")
-    Cours2(midi_mardi, 2, 0, 0, "Midi Mardi", "#bbbbbb", "Midi")
-    Cours2(midi_mercredi, 2, 0, 0, "Midi Mercredi", "#bbbbbb", "Midi")
-    Cours2(midi_jeudi, 2, 0, 0, "Midi Jeudi", "#bbbbbb", "Midi")
-    Cours2(midi_vendredi, 2, 0, 0, "Midi Vendredi", "#bbbbbb", "Midi")
+    Cours2(midi_lundi, 2, "Midi Lundi", 0, "#bbbbbb", "Midi")
+    Cours2(midi_mardi, 2, "Midi Mardi", 0, "#bbbbbb", "Midi")
+    Cours2(midi_mercredi, 2, "Midi Mercredi", 0, "#bbbbbb", "Midi")
+    Cours2(midi_jeudi, 2, "Midi Jeudi", 0, "#bbbbbb", "Midi")
+    Cours2(midi_vendredi, 2, "Midi Vendredi", 0, "#bbbbbb", "Midi")
 
     # 3. Générer les emplois du temps
     db = Database.get('edt_generator')

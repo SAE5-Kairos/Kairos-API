@@ -1,10 +1,10 @@
 class Professeur2:
     ALL = []
 
-    def __init__(self, id, nom, dispo, _copy=False) -> None:
+    def __init__(self, id, nom=None, dispo=None, _copy=False) -> None:
         self.id = id
-        self.nom = nom
-        self.dispo = dispo
+        self.nom = nom if nom else f"Professeur {id}"
+        self.dispo = dispo if dispo else [[1 for _ in range(24)] for __ in range(6)]
 
         if not _copy:
             Professeur2.ALL.append(self)
