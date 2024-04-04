@@ -252,7 +252,7 @@ def generate():
     num_cores = multiprocessing.cpu_count() - 1
 
     total_workers = len(Cours2.ALL) * 300
-    total_managers = total_workers // (Manager.NB_WORKERS + Manager.NB_SUPER_WORKERS)
+    total_managers = total_workers // Manager.NB_WORKERS
     total_iterations = total_managers // num_cores + 1
 
     results = []
@@ -279,6 +279,9 @@ def generate():
 
             print(f"---> {Manager.NB_WORKERS * num_cores} workers ont fini de travailler")
             print(f"---> Meilleur score: {best_score}")
+        print(f"FIN ITER")
 
+    edt = EDT2(_from_cours=best_edt)
     print(f"===> {Manager.NB_WORKERS * num_cores * total_iterations} workers ont fini de travailler")
-    return EDT2(_from_cours=best_edt)
+    print(f"===> Meilleur score: {edt.get_score()}")
+    return edt
