@@ -28,7 +28,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
     all_edt = {}
     for groupe in groupes:
         try:
-            edt = get_edt(groupe['IdGroupe'], semaine, annee)
+            edt = get_edt(groupe['IdGroupe'], semaine, annee, db)
         except Exception as e:
             edt = {
                 "idGroupe": groupe['IdGroupe'],
@@ -45,6 +45,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
                 "error": str(e)
             }
         all_edt[groupe['IdGroupe']] = edt
+    db.close()
     return JsonResponse(all_edt, safe=False)
 
 # Get by Semaine, Annee, idGroupe
@@ -225,7 +226,6 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
     db.close()
     return JsonResponse(edt, safe=False)
 
-
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt
 @method_awaited(["GET", "DELETE", "PUT"])
@@ -314,6 +314,8 @@ def save_edt(request, groupe, semaine, annee):
     """
 
     db = Database.get()
+    Cours2.ALL = []
+    Professeur2.ALL = []
     db.run([sql, (semaine, annee)])
     if not db.exists():
         sql = """
@@ -364,24 +366,28 @@ def save_edt(request, groupe, semaine, annee):
     db.close()
 
     # Ajouter les cours du midi pour l'objet edt
-    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    midi = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
     midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
     midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi
     midi_jeudi = [[0 for _ in range(24)] for __ in range(6)]; midi_jeudi[3] = midi
     midi_vendredi = [[0 for _ in range(24)] for __ in range(6)]; midi_vendredi[4] = midi
+    midi_samedi = [[0 for _ in range(24)] for __ in range(6)]; midi_samedi[5] = midi
+
     midi_lundi = Professeur2(-1, "Midi Lundi", midi_lundi)
     midi_mardi = Professeur2(-2, "Midi Mardi", midi_mardi)
     midi_mercredi = Professeur2(-3, "Midi Mercredi", midi_mercredi)
     midi_jeudi = Professeur2(-4, "Midi Jeudi", midi_jeudi)
     midi_vendredi = Professeur2(-5, "Midi Vendredi", midi_vendredi)
+    midi_samedi = Professeur2(-6, "Midi Samedi", midi_samedi)
 
     midi_hours = []
-    midi_hours.append(Cours2(midi_lundi, 2, "Midi Lundi", 0, "#bbbbbb", "Midi"))
-    midi_hours.append(Cours2(midi_mardi, 2, "Midi Mardi", 0, "#bbbbbb", "Midi"))
-    midi_hours.append(Cours2(midi_mercredi, 2, "Midi Mercredi", 0, "#bbbbbb", "Midi"))
-    midi_hours.append(Cours2(midi_jeudi, 2, "Midi Jeudi", 0, "#bbbbbb", "Midi"))
-    midi_hours.append(Cours2(midi_vendredi, 2, "Midi Vendredi", 0, "#bbbbbb", "Midi"))
+    midi_hours.append(Cours2(professeur=midi_lundi, duree=2, name="Midi Lundi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
+    midi_hours.append(Cours2(professeur=midi_mardi, duree=2, name="Midi Mardi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
+    midi_hours.append(Cours2(professeur=midi_mercredi, duree=2, name="Midi Mercredi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
+    midi_hours.append(Cours2(professeur=midi_jeudi, duree=2, name="Midi Jeudi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
+    midi_hours.append(Cours2(professeur=midi_vendredi, duree=2, name="Midi Vendredi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
+    midi_hours.append(Cours2(professeur=midi_samedi, duree=2, name="Midi Samedi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
 
     # Il faut placer les heures du midi si possible
     for jour, midi_hour in enumerate(midi_hours):
@@ -390,14 +396,14 @@ def save_edt(request, groupe, semaine, annee):
                 edt.add_cours(midi_hour, jour, debut)
                 break
 
-    return JsonResponse({"score": edt.get_score(), "nb_cours": len(edt.cours)}, safe=False)
+    return JsonResponse({"score": edt.get_score(details=True), "nb_cours": len(edt.cours), "edt": str(edt)}, safe=False)
 
 @csrf_exempt
 @method_awaited("GET")
 def save_all_edt(): pass
 
 
-def get_edt(id_groupe: int, semaine: int, annee: int):
+def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
     """
     Récupère l'emploie du temps d'un groupe
     :param id_groupe: int
@@ -414,7 +420,11 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
 		WHERE g1.Nom NOT IN ('Professeur', 'Administrateur') AND IdGroupe = %s 
     """
     
-    db = Database.get()
+    close_db = False
+    if db is None:
+        db = Database.get()
+        close_db = True
+
     db.run([sql, (id_groupe, )])
 
     if not db.exists(): raise Exception('Le groupe sélectionné n\'existe pas')
@@ -505,5 +515,5 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
     for cours in edt_obj.cours:
         edt["cours"][jours[cours.jour]].append(cours.jsonify())
         
-    db.close()
+    if close_db: db.close()
     return edt

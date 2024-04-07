@@ -13,7 +13,7 @@ best_edt_lock = multiprocessing.Lock()
 class Manager:
     NB_WORKERS = 30
     COEF_GAMMA_OVER_EPSILON = 0.95
-    PROFONDEUR_VOISINAGE = 1
+    PROFONDEUR_VOISINAGE = 5
 
     async def start(self, gamma, epsilon):
         loop = asyncio.get_event_loop()

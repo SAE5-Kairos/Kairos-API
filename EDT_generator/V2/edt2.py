@@ -3,8 +3,7 @@ from EDT_generator.V2.cours2 import Cours2
 
 
 class EDT2:
-    SAMEDI_MALUS = 8
-    MIDI_BONUS = 15
+    MALUS_NB_HEURE = 10
 
     def __init__(self, _from_cours=None):
         self.cours: 'list[Cours2]' = []
@@ -77,18 +76,25 @@ class EDT2:
             self.week[cours.jour][cours.heure + i] = 1
         self.cours.remove(cours)
 
-    def get_score(self):
+    def get_score(self, details=False):
         """
         score: 0 --> 100: 100 étant le meilleur score
         """
+        # Nombre d'heure par jour
         nb_heure_by_day = [sum([0.5 for course in jour if type(course) == Cours2 and not course.type_cours != "Midi"]) for jour in self.week]
-        score_nb_heure = [100 - (nb_heure - 8) * 35 if nb_heure > 8 else (nb_heure * 100) / 8 for nb_heure in nb_heure_by_day]
-        score_nb_heure = sum(score_nb_heure) / (len(score_nb_heure) or 1)
+        nb_heure_malus_by_day = [max(0, nb_heure - 16) for nb_heure in nb_heure_by_day]
 
-        gap_edt_by_day = [EDT2.get_nb_gap(day) for day in self.week]
-        score_gap_edt = [100 - (gap_edt**1.5 * 100) / 22**1.5 for gap_edt in gap_edt_by_day]
+        score_nb_heure = len([cours for cours in self.cours if cours.type_cours != "Midi"]) / (len([cours for cours in Cours2.ALL if cours.type_cours != "Midi"]) or 1)
+        score_malus_nb_heure = -sum(nb_heure_malus_by_day) * EDT2.MALUS_NB_HEURE
+        score_nb_heure = score_nb_heure * 100 + score_malus_nb_heure
+
+        # Gap de l'emploi du temps
+        gap_edt_by_day = [EDT2.get_nb_gap(day, get_distance_from_middle=True) for day in self.week]
+        score_gap_edt = [100 - ((gap_edt[0] * 4)**2 * 100) / 24**2 for gap_edt in gap_edt_by_day]
         score_gap_edt = sum(score_gap_edt) / (len(score_gap_edt) or 1)
+        score_gap_distance = 100 - sum([gap_edt[1] / (len(self.week[0]) / 2) for gap_edt in gap_edt_by_day]) / (len(gap_edt_by_day) or 1) * 100
 
+        # Gap des profs
         gap_prof = []
         profs = []
         for course in self.cours:
@@ -101,36 +107,70 @@ class EDT2:
         score_gap_prof = 100 - (sum(gap_prof) * 100) / ((len(gap_prof) or 1) * 23)
 
         # Malus samedi
-        nb_courses_samedi = sum([1 for course in self.cours if course.jour == 5])
-        nb_dispo_same_samedi = sum([1 for course in self.week[5] if course != 0])
-        malus_samedi = EDT2.SAMEDI_MALUS * (nb_courses_samedi / (nb_dispo_same_samedi or 1))
+        nb_courses_samedi = sum([course.duree for course in self.cours if course.jour == 5 and course.type_cours != "Midi"])
+        score_samedi = (1 - nb_courses_samedi / 24) * 100
 
+        # Bonus midi
         cours_midi = len([course for course in self.cours if course.type_cours == "Midi"])
-        total_cours_midi = sum([1 for course in Cours2.ALL if course.type_cours == "Midi"])
-        bonus_midi = EDT2.MIDI_BONUS * (cours_midi / (total_cours_midi or 1))
+        total_cours_midi = len([course for course in Cours2.ALL if course.type_cours == "Midi"])
+        score_midi = cours_midi / (total_cours_midi or 1) * 100
 
-        return  (3.5 * score_nb_heure + 2 * score_gap_edt + 1 * score_gap_prof) / 6.5 - malus_samedi + bonus_midi
+        if details:
+            return {
+                "score_nb_heure": score_nb_heure,
+                "cours_midi": cours_midi,
+                "score_malus_nb_heure": score_malus_nb_heure,
+                "score_gap_edt": score_gap_edt,
+                "score_gap_prof": score_gap_prof,
+                "score_gap_distance": score_gap_distance,
+                "score_samedi": score_samedi,
+                "score_midi": score_midi,
+                "score": (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1 * score_samedi + 1.5 * score_midi) / 10
+            }
+
+        return (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1 * score_samedi + 1.5 * score_midi) / 10
 
     @staticmethod
-    def get_nb_gap(edt: list, on_type=True):
+    def get_nb_gap(edt: list, on_type=True, get_distance_from_middle=False):
         """
         :param edt: emploi du temps d'une journée dont l'on veut connaitre le nombre de gap
         :param on_type: si les heures pleines sont des cours: Vrai sinon les heures pleines sont des 1
         :return: le nombre de gap (int)
         """
 
+        middle = len(edt) // 2
+        max_gap_distance = [0]
+
         day_start = False
         count_gap = 0
         total_gap = 0
-
+        count_next_gap = False
         for index, element in enumerate(edt):
             if (on_type and type(element) == Cours2) or (not on_type and element == 1):
                 day_start = True
+
+                if not count_next_gap and not (type(element) == Cours2 and element.type_cours == "Midi"):
+                    count_next_gap = True
+                    max_gap_distance[-1] = 0
+                    count_gap = 0
+                    continue
+
                 total_gap += count_gap
                 count_gap = 0
+                max_gap_distance.append(0)
 
-            if day_start and ((on_type and type(element) != Cours2) or (not on_type and element == 0)): count_gap += 1
+            if day_start and ((on_type and type(element) != Cours2) or (not on_type and element == 0)): 
+                count_gap += 1
 
+                if get_distance_from_middle and count_next_gap:
+                    max_gap_distance[-1] = max(max_gap_distance[-1], abs(index - middle))
+
+        # Retirer le dernier gap si le dernier créneau est vide
+        if count_gap:
+            max_gap_distance.pop()
+
+        if get_distance_from_middle:
+            return total_gap, sum(max_gap_distance) / (len(max_gap_distance) or 1)
         return total_gap
 
     def jsonify(self):

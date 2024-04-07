@@ -116,7 +116,7 @@ def generate_edt_v2(request):
     if len(body) == 0: raise Exception("[API][generate_edt]() -> Impossible de générer un emploi du temps sans cours")
 
     sql_get_banque = """
-        SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' ', r.Nom) AS NomCours, t.Nom AS TypeCours, r.Abreviation
+        SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' - ', r.Nom) AS NomCours, t.Nom AS TypeCours, CONCAT(r.Libelle, ' - ', r.Abreviation) AS Abreviation
         FROM 
             Banque b
             LEFT JOIN Couleur c ON  b.IdCouleur = c.IdCouleur
@@ -170,7 +170,7 @@ def generate_edt_v2(request):
     db.close()
 
     # 2. Créer les cours et profs du midi
-    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    midi = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
     midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
     midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi
@@ -199,7 +199,6 @@ def generate_edt_v2(request):
     Cours2.save_associations()
 
     edt = generate()
-
     return JsonResponse(edt.jsonify(), safe=False)
 
 @csrf_exempt
