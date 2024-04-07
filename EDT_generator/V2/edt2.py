@@ -3,7 +3,7 @@ from EDT_generator.V2.cours2 import Cours2
 
 
 class EDT2:
-    SAMEDI_MALUS = 5
+    SAMEDI_MALUS = 8
     MIDI_BONUS = 15
 
     def __init__(self, _from_cours=None):
@@ -55,6 +55,20 @@ class EDT2:
                 return -2
         return 1
     
+    def get_collided_courses(self, jour: int, heure: int, cours: Cours2):
+        """
+        :param jour: int -> Jour de la semaine
+        :param heure: int -> Heure de début du cours
+        :param cours: Cours2 -> Cours à ajouter
+        :return list[Cours2]: Liste des cours qui chevauchent
+        """
+        duree = cours.duree
+        collided_courses: list[Cours2] = []
+        for i in range(duree):
+            if self.week[jour][heure + i] != 1 and self.week[jour][heure + i] not in collided_courses:
+                collided_courses.append(self.week[jour][heure + i])
+        return collided_courses
+
     def remove_cours(self, cours:Cours2):
         if cours not in self.cours:
             raise Exception(f"[EDT][remove_cours]({cours}) -> Cours non présent dans l'emploi du temps")

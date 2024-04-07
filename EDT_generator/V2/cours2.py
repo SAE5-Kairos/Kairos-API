@@ -5,7 +5,7 @@ class Cours2:
     AUTO_INCREMENT = 0
     ALL: 'list[Cours2]' = []
 
-    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur, type_cours, _copy=False, _id=None) -> None:
+    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur:str, type_cours:str, abrevaition:str='undefined', warning_message:str=None, _copy=False, _id=None) -> None:
         """
         professeur: Professeur2
         duree: int (nb créneaux de 30 minutes)
@@ -27,6 +27,8 @@ class Cours2:
         self.heure = None
 
         self.name = name
+        self.abrevaition = abrevaition
+        self.warning_message = warning_message
 
         if not _copy:
             Cours2.ALL.append(self)
@@ -58,7 +60,7 @@ class Cours2:
         return f"C{self.id}"
         
     def copy(self):
-        return Cours2(professeur=self.professeur, duree=self.duree, name=self.name, id_banque=self.id_banque, couleur=self.couleur, type_cours=self.type_cours, _copy=True, _id=self.id)
+        return Cours2(professeur=self.professeur, duree=self.duree, name=self.name, id_banque=self.id_banque, couleur=self.couleur, type_cours=self.type_cours, abrevaition=self.abrevaition, warning_message=self.warning_message, _copy=True, _id=self.id)
 
     def save_associations(self=None):
         if self is None:
@@ -91,17 +93,18 @@ class Cours2:
         db.close()
 
     def jsonify(self):
-        # {'id': f'{cours.name}', 'idBanque': f'{cours.banque}', 'idEnseignant': f'{cours.id_prof}', 'enseignant': f'{cours.professeur}', 'type': 'TD', 'abreviation': cours.display_name, 'heureDebut': cours.debut, 'duree': int(cours.duree * 2), 'style': cours.color} for cours in sorted(self.placed_cours, key=lambda c: c.debut or 0) if cours.jour == 0 and not cours.display_name.startswith('Midi')
         return {
             "id": str(self.id),
             'idBanque': str(self.id_banque),
             'idEnseignant': str(self.professeur.id),
             'enseignant': str(self.professeur.nom),
             'type': self.type_cours,
-            'abreviation': self.name,
+            'libelle': self.name,
+            'abreviation': self.abrevaition,
             'heureDebut': self.heure,
             'duree': int(self.duree),
-            'style': self.couleur
+            'style': self.couleur,
+            'warning': self.warning_message
         }
 
     @staticmethod

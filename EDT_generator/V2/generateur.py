@@ -13,6 +13,7 @@ best_edt_lock = multiprocessing.Lock()
 class Manager:
     NB_WORKERS = 30
     COEF_GAMMA_OVER_EPSILON = 0.95
+    PROFONDEUR_VOISINAGE = 1
 
     async def start(self, gamma, epsilon):
         loop = asyncio.get_event_loop()
@@ -104,9 +105,10 @@ class Worker:
         """
 
         score = self.edt.get_score()
-        try: self.upgrade_edt_with_local_search()
-        except Exception as e: print("Worker local search:", e)
-        #print("Worker score:", self.edt.get_score() - score)
+        for _ in range(Manager.PROFONDEUR_VOISINAGE):
+            try: self.upgrade_edt_with_local_search()
+            except Exception as e: print("Worker local search:", e)
+        print("Worker score:", self.edt.get_score() - score)
         score = self.edt.get_score()
 
         for cours in self.edt.cours:
@@ -251,7 +253,7 @@ class Worker:
 def generate():
     num_cores = multiprocessing.cpu_count() - 1
 
-    total_workers = len(Cours2.ALL) * 300
+    total_workers = len(Cours2.ALL) * 200
     total_managers = total_workers // Manager.NB_WORKERS
     total_iterations = total_managers // num_cores + 1
 
