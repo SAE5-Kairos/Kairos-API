@@ -126,6 +126,12 @@ def generate_edt_v2(request):
         WHERE IdBanque = %s;
     """
 
+    db = Database.get('edt_generator')
+    db.run("DELETE FROM ALL_ASSOCIATIONS;")
+    db.run("DELETE FROM PHEROMONES2;")
+    db.close()
+    print("Ready to generate EDT")
+
     sql_prof_indispo = """
         SELECT 
             DateDebut, DateFin, 
@@ -192,10 +198,6 @@ def generate_edt_v2(request):
     Cours2(professeur=midi_samedi, duree=2, name="Midi Samedi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
 
     # 3. Générer les emplois du temps
-    db = Database.get('edt_generator')
-    db.run("DELETE FROM ALL_ASSOCIATIONS;")
-    db.run("DELETE FROM PHEROMONES2;")
-    db.close()
     Cours2.save_associations()
 
     edt = generate()

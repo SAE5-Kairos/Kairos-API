@@ -4,6 +4,8 @@ from Kairos_API.database import Database
 class Cours2:
     AUTO_INCREMENT = 0
     ALL: 'list[Cours2]' = []
+    ASSOCIATIONS: 'dict[int, dict[tuple, int]]' = {}
+    """{cours_id: {(jour, heure): id_association}}"""
 
     def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur:str, type_cours:str, groupe:int=0, abrevaition:str='undefined', warning_message:str=None, _copy=False, _id=None) -> None:
         """
@@ -88,6 +90,10 @@ class Cours2:
 
                 if dispo_counter >= self.duree:
                     db.run([sql, (self.id, jour, dispo_hour)])
+
+                    if self.id not in Cours2.ASSOCIATIONS:
+                        Cours2.ASSOCIATIONS[self.id] = {}
+                    Cours2.ASSOCIATIONS[self.id][(jour, dispo_hour)] = db.last_id()
                     dispo_counter -= 1
                     dispo_hour += 1
 
@@ -108,6 +114,19 @@ class Cours2:
             'groupe': str(self.groupe),
             'warning': self.warning_message
         }
+
+    def get_association(self=None, cours:'Cours2'=None) -> int:
+        if self is None and cours is None:
+            raise Exception("[Cours2][get_association] -> Aucun cours spécifié")
+        
+        if cours is None:
+            if self.jour is None or self.heure is None:
+                raise Exception(f"[Cours2][get_association]({self}) -> Cours non ajouté à l'emploi du temps")
+            return Cours2.ASSOCIATIONS[self.id][(self.jour, self.heure)]
+        
+        if cours.jour is None or cours.heure is None:
+            raise Exception(f"[Cours2][get_association]({cours}) -> Cours non ajouté à l'emploi du temps")
+        return Cours2.ASSOCIATIONS[cours.id][(cours.jour, cours.heure)]
 
     @staticmethod
     def save_creneaux():

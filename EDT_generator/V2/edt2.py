@@ -81,8 +81,8 @@ class EDT2:
         score: 0 --> 100: 100 étant le meilleur score
         """
         # Nombre d'heure par jour
-        nb_heure_by_day = [sum([0.5 for course in jour if type(course) == Cours2 and not course.type_cours != "Midi"]) for jour in self.week]
-        nb_heure_malus_by_day = [max(0, nb_heure - 16) for nb_heure in nb_heure_by_day]
+        nb_heure_by_day = [sum([cours.duree for cours in self.cours if cours.jour == day and cours.type_cours != "Midi"]) for day in range(6)]
+        nb_heure_malus_by_day = [max(0, nb_heure - 14) for nb_heure in nb_heure_by_day]
 
         score_nb_heure = len([cours for cours in self.cours if cours.type_cours != "Midi"]) / (len([cours for cours in Cours2.ALL if cours.type_cours != "Midi"]) or 1)
         score_malus_nb_heure = -sum(nb_heure_malus_by_day) * EDT2.MALUS_NB_HEURE
@@ -117,6 +117,7 @@ class EDT2:
 
         if details:
             return {
+                "gap_edt_by_day": gap_edt_by_day,
                 "score_nb_heure": score_nb_heure,
                 "cours_midi": cours_midi,
                 "score_malus_nb_heure": score_malus_nb_heure,
@@ -125,10 +126,10 @@ class EDT2:
                 "score_gap_distance": score_gap_distance,
                 "score_samedi": score_samedi,
                 "score_midi": score_midi,
-                "score": (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1 * score_samedi + 1.5 * score_midi) / 10
+                "score": (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1.5 * score_samedi + 2 * score_midi) / 11
             }
 
-        return (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1 * score_samedi + 1.5 * score_midi) / 10
+        return (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1.5 * score_samedi + 2 * score_midi) / 11
 
     @staticmethod
     def get_nb_gap(edt: list, on_type=True, get_distance_from_middle=False):
