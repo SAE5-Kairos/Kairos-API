@@ -500,7 +500,8 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
                         placed_cours.warning_message = f"Un cours ({cours['libelle']}) est placé à cette même heure, ce même jour pour le même groupe."
                 else:
                     for placed_cours in cours_deja_place:
-                        placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité. {why}"
+                        placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité."
+    
     for cours in edt_obj.cours:
         edt["cours"][jours[cours.jour]].append(cours.jsonify())
         
