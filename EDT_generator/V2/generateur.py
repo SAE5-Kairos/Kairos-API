@@ -253,7 +253,7 @@ class Worker:
 def generate():
     num_cores = multiprocessing.cpu_count() - 1
 
-    total_workers = len(Cours2.ALL) * 200
+    total_workers = len(Cours2.ALL) * 100
     total_managers = total_workers // Manager.NB_WORKERS
     total_iterations = total_managers // num_cores + 1
 

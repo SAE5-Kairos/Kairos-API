@@ -5,7 +5,7 @@ class Cours2:
     AUTO_INCREMENT = 0
     ALL: 'list[Cours2]' = []
 
-    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur:str, type_cours:str, abrevaition:str='undefined', warning_message:str=None, _copy=False, _id=None) -> None:
+    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur:str, type_cours:str, groupe:int=0, abrevaition:str='undefined', warning_message:str=None, _copy=False, _id=None) -> None:
         """
         professeur: Professeur2
         duree: int (nb créneaux de 30 minutes)
@@ -28,6 +28,7 @@ class Cours2:
 
         self.name = name
         self.abrevaition = abrevaition
+        self.groupe = groupe
         self.warning_message = warning_message
 
         if not _copy:
@@ -104,6 +105,7 @@ class Cours2:
             'heureDebut': self.heure,
             'duree': int(self.duree),
             'style': self.couleur,
+            'groupe': str(self.groupe),
             'warning': self.warning_message
         }
 

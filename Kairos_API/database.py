@@ -33,9 +33,13 @@ class Database:
                 print(f"Impossible de se connecter à la base de données {self.database} sur {self.host}:{self.port} avec l'utilisateur {self.user}.")
                 print("Réessai dans 3 secondes...")
                 time.sleep(3)
-        if nb_try == 5:
-            print('--> Impossible de se connecter à la base de données')
-            return None
+        if nb_try == 5 and self.cnx is None:
+            if self.driver == 'mariadb':
+                    self.cnx = mariadb.connect(user=self.user, database=self.database, password=self.password, host=self.host,
+                                            port=int(self.port), autocommit=True)
+            else:
+                self.cnx = pymysql.connect(user=self.user, database=self.database, password=self.password, host=self.host,
+                                        port=int(self.port), autocommit=True)
         self.cursor = self.cnx.cursor()
     
     @staticmethod

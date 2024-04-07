@@ -485,7 +485,7 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
             cours_obj = Cours2(
                 Professeur2(cours["IdUtilisateur"], cours['enseignant']), duree=cours["Duree"], name=cours['libelle'], 
                 id_banque=cours['IdBanque'], couleur=cours["style"], type_cours=cours["type"], 
-                abrevaition=cours["abreviation"]
+                abrevaition=cours["abreviation"], groupe=cours['IdGroupe']
             )
 
             if edt_obj.is_free(cours['NumeroJour'], cours["HeureDebut"], cours_obj) == 1:

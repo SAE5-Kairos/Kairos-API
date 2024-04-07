@@ -116,12 +116,13 @@ def generate_edt_v2(request):
     if len(body) == 0: raise Exception("[API][generate_edt]() -> Impossible de générer un emploi du temps sans cours")
 
     sql_get_banque = """
-        SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' ', r.Nom) AS 'NomCours'
+        SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' ', r.Nom) AS NomCours, t.Nom AS TypeCours, r.Abreviation
         FROM 
             Banque b
             LEFT JOIN Couleur c ON  b.IdCouleur = c.IdCouleur
             JOIN Ressource r ON b.IdRessource = r.IdRessource
             LEFT JOIN Utilisateur u ON b.IdUtilisateur = u.IdUtilisateur
+            LEFT JOIN TypeCours t ON b.IdTypeCours = t.IdTypeCours
         WHERE IdBanque = %s;
     """
 
@@ -165,7 +166,7 @@ def generate_edt_v2(request):
             prof = Professeur2(id_prof, nom_prof, dispo)
         else: prof = Professeur2.get(id_prof)
 
-        Cours2(professeur=prof, duree=duree, name=nom_cours, id_banque=cours_data['id_banque'], couleur=color, type_cours='TD')
+        Cours2(professeur=prof, duree=duree, name=nom_cours, id_banque=cours_data['id_banque'], couleur=color, type_cours=banque_data['TypeCours'], abrevaition=banque_data['Abreviation'])
     db.close()
 
     # 2. Créer les cours et profs du midi
@@ -175,17 +176,20 @@ def generate_edt_v2(request):
     midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi
     midi_jeudi = [[0 for _ in range(24)] for __ in range(6)]; midi_jeudi[3] = midi
     midi_vendredi = [[0 for _ in range(24)] for __ in range(6)]; midi_vendredi[4] = midi
+    midi_samedi = [[0 for _ in range(24)] for __ in range(6)]; midi_samedi[5] = midi
     midi_lundi = Professeur2(-1, "Midi Lundi", midi_lundi)
     midi_mardi = Professeur2(-2, "Midi Mardi", midi_mardi)
     midi_mercredi = Professeur2(-3, "Midi Mercredi", midi_mercredi)
     midi_jeudi = Professeur2(-4, "Midi Jeudi", midi_jeudi)
     midi_vendredi = Professeur2(-5, "Midi Vendredi", midi_vendredi)
+    midi_samedi = Professeur2(-6, "Midi Samedi", midi_samedi)
 
-    Cours2(midi_lundi, 2, "Midi Lundi", 0, "#bbbbbb", "Midi")
-    Cours2(midi_mardi, 2, "Midi Mardi", 0, "#bbbbbb", "Midi")
-    Cours2(midi_mercredi, 2, "Midi Mercredi", 0, "#bbbbbb", "Midi")
-    Cours2(midi_jeudi, 2, "Midi Jeudi", 0, "#bbbbbb", "Midi")
-    Cours2(midi_vendredi, 2, "Midi Vendredi", 0, "#bbbbbb", "Midi")
+    Cours2(professeur=midi_lundi, duree=2, name="Midi Lundi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
+    Cours2(professeur=midi_mardi, duree=2, name="Midi Mardi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
+    Cours2(professeur=midi_mercredi, duree=2, name="Midi Mercredi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
+    Cours2(professeur=midi_jeudi, duree=2, name="Midi Jeudi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
+    Cours2(professeur=midi_vendredi, duree=2, name="Midi Vendredi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
+    Cours2(professeur=midi_samedi, duree=2, name="Midi Samedi", id_banque=0, couleur="#bbbbbb", type_cours="Midi")
 
     # 3. Générer les emplois du temps
     db = Database.get('edt_generator')
