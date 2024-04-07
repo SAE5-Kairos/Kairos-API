@@ -123,43 +123,6 @@ class Database:
 try:
     # Initialisation de la db de génération d'emploi du temps
     db_edt_generator = Database.get("edt_generator")
-    sql = """
-        DROP TABLE IF EXISTS COURS;
-    """
-    db_edt_generator.run(sql)
-
-    sql = """
-    CREATE TABLE IF NOT EXISTS COURS (
-        ID INT AUTO_INCREMENT PRIMARY KEY,
-        COURS VARCHAR(10),
-        JOUR INT,
-        DEBUT INT,
-        INDEX idx_cours (COURS, JOUR, DEBUT)
-    );
-    """
-    db_edt_generator.run(sql)
-
-    sql = """
-    CREATE TABLE IF NOT EXISTS PHEROMONES (
-        ID_COURS INT,
-        PHEROMONE FLOAT,
-        BOOSTED TINYINT,
-        INDEX idx_pheromones (ID_COURS)
-    );
-    """
-
-    db_edt_generator.run(sql)
-
-    sql = """
-    CREATE TABLE IF NOT EXISTS EDT_SIGNATURES (
-        SIGNATURE VARCHAR(528) PRIMARY KEY,
-        NOMBRE INT,
-        INDEX idx_signatures (SIGNATURE)
-    );
-    """
-    db_edt_generator.run(sql)
-
-    # V2 ALGO
 
     sql = """
     CREATE OR REPLACE TABLE ALL_ASSOCIATIONS (
