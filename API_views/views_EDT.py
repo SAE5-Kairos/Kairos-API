@@ -278,7 +278,6 @@ def by_id(request, code: int):
         db.close()
         return JsonResponse(nb_row_affected == 1, safe=False)
 
-
 @csrf_exempt
 @method_awaited("POST")
 def add(request):
@@ -303,7 +302,6 @@ def add(request):
         return JsonResponse(nb_row_affected == 1, safe=False)
     except:
         return JsonResponse({"error":"An error has occurred during the process."}, safe=False)
-
 
 @csrf_exempt
 @method_awaited("PUT")
@@ -408,6 +406,7 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
     :return: dict (json) de l'emploie du temps du groupe
     :errors: Exception si le groupe n'existe pas, si la base de donnée est corrompue
     """
+
     sql = """
         SELECT g1.Nom as GroupeNom, s.Nom as SalleNom
 		FROM Groupe as g1
@@ -441,7 +440,8 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
         WHERE Semaine = %s AND Annee = %s
     """
     db.run([sql, (semaine, annee)])
-    if not db.exists(): return edt
+    
+    if not db.exists(): edt["info"] = f"Aucun edt n'a été créé pour la semaine {semaine} de l'année {annee}"; return edt
 
     id_EDT = db.fetch(first=True)['IdEDT']
     
@@ -483,19 +483,24 @@ def get_edt(id_groupe: int, semaine: int, annee: int):
         # 3. Ajouter les cours à l'EDT
         for cours in all_cours:
             cours_obj = Cours2(
-                Professeur2(cours["IdUtilisateur"]), duree=cours["duree"], name=cours['libelle'], 
+                Professeur2(cours["IdUtilisateur"], cours['enseignant']), duree=cours["Duree"], name=cours['libelle'], 
                 id_banque=cours['IdBanque'], couleur=cours["style"], type_cours=cours["type"], 
                 abrevaition=cours["abreviation"]
             )
 
-            if edt_obj.is_free(cours['NumeroJour'], cours["HeureDebut"], cours_obj):
+            if edt_obj.is_free(cours['NumeroJour'], cours["HeureDebut"], cours_obj) == 1:
                 edt_obj.add_cours(cours_obj, cours['NumeroJour'], cours["HeureDebut"])
             
             else:
                 # Récupérer le cours déjà placé
                 cours_deja_place = edt_obj.get_collided_courses(cours['NumeroJour'], cours["HeureDebut"], cours_obj)
-                for placed_cours in cours_deja_place:
-                    placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité."
+                
+                if groupe['IdGroupe'] == id_groupe:
+                    for placed_cours in cours_deja_place:
+                        placed_cours.warning_message = f"Un cours ({cours['libelle']}) est placé à cette même heure, ce même jour pour le même groupe."
+                else:
+                    for placed_cours in cours_deja_place:
+                        placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité. {why}"
     for cours in edt_obj.cours:
         edt["cours"][jours[cours.jour]].append(cours.jsonify())
         
