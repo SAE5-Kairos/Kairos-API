@@ -176,7 +176,7 @@ def generate_edt_v2(request):
     db.close()
 
     # 2. Créer les cours et profs du midi
-    midi = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
     midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
     midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi

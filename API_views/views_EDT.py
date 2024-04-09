@@ -1,6 +1,7 @@
 import json
 from django.http import JsonResponse
 
+from EDT_generator.V2.generateur import Worker, get_worker_data, best_edt, best_score
 from EDT_generator.V2.edt2 import EDT2
 from EDT_generator.V2.cours2 import Cours2
 from EDT_generator.V2.professeur2 import Professeur2
@@ -366,7 +367,7 @@ def save_edt(request, groupe, semaine, annee):
     db.close()
 
     # Ajouter les cours du midi pour l'objet edt
-    midi = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
     midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
     midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi

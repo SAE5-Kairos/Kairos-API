@@ -90,7 +90,7 @@ class EDT2:
 
         # Gap de l'emploi du temps
         gap_edt_by_day = [EDT2.get_nb_gap(day, get_distance_from_middle=True) for day in self.week]
-        score_gap_edt = [100 - ((gap_edt[0] * 4)**2 * 100) / 24**2 for gap_edt in gap_edt_by_day]
+        score_gap_edt = [100 - ((gap_edt[0] * 6)**2 * 100) / 24**2 for gap_edt in gap_edt_by_day]
         score_gap_edt = sum(score_gap_edt) / (len(score_gap_edt) or 1)
         score_gap_distance = 100 - sum([gap_edt[1] / (len(self.week[0]) / 2) for gap_edt in gap_edt_by_day]) / (len(gap_edt_by_day) or 1) * 100
 
@@ -126,10 +126,10 @@ class EDT2:
                 "score_gap_distance": score_gap_distance,
                 "score_samedi": score_samedi,
                 "score_midi": score_midi,
-                "score": (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1.5 * score_samedi + 2 * score_midi) / 11
+                "score": (2 * score_nb_heure + 3.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1.5 * score_samedi + 2 * score_midi) / 11
             }
 
-        return (3 * score_nb_heure + 2.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1.5 * score_samedi + 2 * score_midi) / 11
+        return (2 * score_nb_heure + 3.5 * score_gap_edt + 1 * score_gap_prof + 1 * score_gap_distance + 1.5 * score_samedi + 2 * score_midi) / 11
 
     @staticmethod
     def get_nb_gap(edt: list, on_type=True, get_distance_from_middle=False):
@@ -164,7 +164,7 @@ class EDT2:
                 count_gap += 1
 
                 if get_distance_from_middle and count_next_gap:
-                    max_gap_distance[-1] = max(max_gap_distance[-1], abs(index - middle))
+                    max_gap_distance[-1] = max(max_gap_distance[-1], index - abs(index - middle))
 
         # Retirer le dernier gap si le dernier créneau est vide
         if count_gap:
