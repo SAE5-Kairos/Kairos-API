@@ -310,98 +310,55 @@ def save_edt(request, groupe, semaine, annee):
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
 
+    save_one_edt(groupe, annee, semaine, body)
+
+    return JsonResponse(True, safe=False)
+
+@csrf_exempt
+@method_awaited("PUT")
+def save_all_edt(request, semaine, annee):
+    db = Database.get()
+    body_unicode = request.body.decode('utf-8')
+    body = json.loads(body_unicode)
+
+    for groupe, week in body.items():
+        save_one_edt(groupe, annee, semaine, week, db)
+    
+    db.close()
+    return JsonResponse(True, safe=False)
+
+def save_one_edt(groupe: int, annee: int, semaine: int, week: dict, db: Database=None):
+    close_db = False
+    if db is None: 
+        db = Database.get()
+        close_db = True
+
+    # 1. Créer l'EDT si il n'existe pas sinon récupérer son id et supprimer les cours
     sql = """
         SELECT IdEDT FROM EDT WHERE Semaine = %s AND Annee = %s;
     """
-
-    db = Database.get()
-    Cours2.ALL = []
-    Professeur2.ALL = []
     db.run([sql, (semaine, annee)])
     if not db.exists():
         sql = """
             INSERT INTO EDT (Semaine, Annee) VALUES (%s, %s);
         """
-
         db.run([sql, (semaine, annee)])
-        edt_id = db.last_id()
+        id_edt = db.last_id()
     else:
-        edt_id = db.fetch(first=True)['IdEDT']
+        id_edt = db.fetch(first=True)['IdEDT']
         sql = """
-            DELETE FROM Cours WHERE IdEDT = %s AND IdGroupe = %s;
+            DELETE FROM Cours WHERE IdEDT = %s;
         """
-        db.run([sql, (edt_id, groupe)])
-
-    jours_id = {
-        "Lundi": 0,
-        "Mardi": 1,
-        "Mercredi": 2,
-        "Jeudi": 3,
-        "Vendredi": 4,
-        "Samedi": 5
-    }
-
-    edt = EDT2()
-
-    sql = """
-        INSERT INTO Cours (NumeroJour, HeureDebut, IdBanque, IdEDT, IdGroupe)
-        VALUES (%s, %s, %s, %s, %s);
-    """
-
-    sql_get_duration = """
-        SELECT Duree FROM Banque WHERE IdBanque = %s;
-    """
+        db.run([sql, (id_edt,)])
     
-    for jour, cours in body.items():
-        for cours_data in cours:
-            duration = db.run([sql_get_duration, (cours_data['idBanque'],)]).fetch(first=True)['Duree']
-            Cours2(professeur=Professeur2(len(Professeur2.ALL)), 
-                duree=duration, 
-                name='undefined', 
-                id_banque=cours_data['idBanque'], 
-                couleur='undefined', 
-                type_cours='undefined'
-            )
-            edt.add_cours(Cours2.ALL[-1], jours_id[jour], cours_data['heureDebut'])
-            db.run([sql, (jours_id[jour], cours_data['heureDebut'], cours_data['idBanque'], edt_id, groupe)])
-    db.close()
-
-    # Ajouter les cours du midi pour l'objet edt
-    midi = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    midi_lundi = [[0 for _ in range(24)] for __ in range(6)]; midi_lundi[0] = midi
-    midi_mardi = [[0 for _ in range(24)] for __ in range(6)]; midi_mardi[1] = midi
-    midi_mercredi = [[0 for _ in range(24)] for __ in range(6)]; midi_mercredi[2] = midi
-    midi_jeudi = [[0 for _ in range(24)] for __ in range(6)]; midi_jeudi[3] = midi
-    midi_vendredi = [[0 for _ in range(24)] for __ in range(6)]; midi_vendredi[4] = midi
-    midi_samedi = [[0 for _ in range(24)] for __ in range(6)]; midi_samedi[5] = midi
-
-    midi_lundi = Professeur2(-1, "Midi Lundi", midi_lundi)
-    midi_mardi = Professeur2(-2, "Midi Mardi", midi_mardi)
-    midi_mercredi = Professeur2(-3, "Midi Mercredi", midi_mercredi)
-    midi_jeudi = Professeur2(-4, "Midi Jeudi", midi_jeudi)
-    midi_vendredi = Professeur2(-5, "Midi Vendredi", midi_vendredi)
-    midi_samedi = Professeur2(-6, "Midi Samedi", midi_samedi)
-
-    midi_hours = []
-    midi_hours.append(Cours2(professeur=midi_lundi, duree=2, name="Midi Lundi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
-    midi_hours.append(Cours2(professeur=midi_mardi, duree=2, name="Midi Mardi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
-    midi_hours.append(Cours2(professeur=midi_mercredi, duree=2, name="Midi Mercredi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
-    midi_hours.append(Cours2(professeur=midi_jeudi, duree=2, name="Midi Jeudi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
-    midi_hours.append(Cours2(professeur=midi_vendredi, duree=2, name="Midi Vendredi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
-    midi_hours.append(Cours2(professeur=midi_samedi, duree=2, name="Midi Samedi", id_banque=0, couleur="#bbbbbb", type_cours="Midi"))
-
-    # Il faut placer les heures du midi si possible
-    for jour, midi_hour in enumerate(midi_hours):
-        for debut in range(6, 14):
-            if edt.is_free(jour, debut, midi_hour) == 1:
-                edt.add_cours(midi_hour, jour, debut)
-                break
-
-    return JsonResponse({"score": edt.get_score(details=True), "nb_cours": len(edt.cours), "edt": str(edt)}, safe=False)
-
-@csrf_exempt
-@method_awaited("GET")
-def save_all_edt(): pass
+    # 2. Ajouter les cours
+    sql = """
+        INSERT INTO Cours (IdBanque, IdEDT, NumeroJour, HeureDebut, IdGroupe) VALUES (%s, %s, %s, %s, %s);
+    """
+    for jour, all_cours in enumerate(week.values()):
+        for cours in all_cours:
+            db.run([sql, (cours['idBanque'], id_edt, jour, cours['heureDebut'], groupe)])
+    if close_db: db.close()
 
 
 def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
