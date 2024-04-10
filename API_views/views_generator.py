@@ -22,97 +22,6 @@ def generate_edt(request):
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
 
-    if len(body) == 0: raise Exception("Impossible de générer un emploi du temps sans cours")
-    db = Database.get()
-    
-    profs = {}
-    Cours.ALL = []
-
-    for cours_data in body:
-        id_banque = cours_data['id_banque']
-
-        sql = """
-            SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' ', r.Nom) AS 'NomCours'
-            FROM 
-                Banque b
-                LEFT JOIN Couleur c ON  b.IdCouleur = c.IdCouleur
-                JOIN Ressource r ON b.IdRessource = r.IdRessource
-                LEFT JOIN Utilisateur u ON b.IdUtilisateur = u.IdUtilisateur
-            WHERE IdBanque = %s;
-        """
-        data = db.run([sql, (id_banque, )]).fetch(first=True)
-        if len(data) == 0:
-            raise Exception(f"Aucune informations retrouvées pour l'id de banque {id_banque}")
-
-        id_prof = int(data['IdUtilisateur'])
-        duree = int(data['Duree'])
-        color = data['CouleurHexa'] or '#bbbbbb'
-        nom_cours = data['NomCours'].capitalize()
-
-        if id_prof in profs:
-            prof = profs[id_prof]
-        else:
-            dispo = [[ 1 for _ in range(24)] for __ in range(6)]
-            name = data['Prenom'][0].upper() + ". " + data['Nom'].capitalize()
-            sql = """
-                SELECT 
-                    DateDebut, DateFin, 
-                    WEEKDAY(DateDebut) AS JourDebut,
-                    WEEKDAY(DateFin) AS JourFin
-                FROM 
-                    Indisponibilite 
-                WHERE 
-                    IdUtilisateur = %s AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s 
-                    AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
-            """
-            cours_data['semaine'] -= 1 # Pour s'accorder avec la norme ISO du calendrier
-            params = (id_prof, cours_data['semaine'], cours_data['semaine'], cours_data['annee'], cours_data['annee'])
-            data = db.run([sql, params]).fetch()
-            
-            for indispo in data:
-                if indispo["DateFin"].isocalendar()[1] > cours_data['semaine']: indispo['JourFin'] = 6
-
-                if indispo["DateDebut"].date() == indispo["DateFin"].date():
-                    for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-                        dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
-
-                else:
-                    # Si l'absence est sur la même semaine
-                    if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
-                        for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()): # Fin exclue
-                            dispo[day] = [ 0 for _ in range(24)]
-
-                        for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-                            dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
-                    
-                    # Si le prof est abs toute la semaine
-                    else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
-
-            prof = Professeur(dispo, name)
-            profs[id_prof] = prof
-            
-        Cours(id_prof, prof, duree / 2, id_banque, nom_cours, color)
-    
-    debut = datetime.datetime.now()
-    async def edt_generator_async(): await EDT_GENERATOR.generate_edts(15, int(len(Cours.ALL) * 2))
-    ants = asyncio.run(edt_generator_async())
-    print("> Durée totale: " + str(datetime.datetime.now() - debut))
-    f = open('log.txt', 'a')
-    f.write('durée tot: ' + str(datetime.datetime.now() - debut) + '\n')
-    f.close()
-
-    # Créer l'EDT:
-    week_date = f'{body[0]["annee"]}-W{body[0]["semaine"]}'
-    week_date = datetime.datetime.strptime(week_date + '-1', "%Y-W%W-%w")
-
-    return JsonResponse(EDT_GENERATOR.BETTER_EDT.jsonify(), safe=False)
-
-@csrf_exempt
-@method_awaited("POST")
-def generate_edt_v2(request):
-    body_unicode = request.body.decode('utf-8')
-    body = json.loads(body_unicode)
-
     if len(body) == 0: raise Exception("[API][generate_edt]() -> Impossible de générer un emploi du temps sans cours")
 
     sql_get_banque = """
@@ -200,31 +109,22 @@ def get_prof_dispo(request, id_prof, semaine, annee):
 @method_awaited("GET")
 def get_prof_dispo_all(request, semaine, annee):
     db = Database.get()
-    semaine -= 1 # Pour s'accorder avec la norme ISO du calendrier
     sqlIdUtilisateur= """
-        SELECT 
-            IdUtilisateur as idEnseignant, DateDebut, DateFin, WEEKDAY(DateDebut) AS JourDebut, WEEKDAY(DateFin) AS JourFin
+        SELECT DISTINCT
+            u.IdUtilisateur as idEnseignant
         FROM 
-            Indisponibilite 
+            Utilisateur u
+            JOIN RoleUtilisateur ru ON u.IdUtilisateur = ru.IdUtilisateur
         WHERE
-            WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
-            AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
+            ru.Label = 'Professeur'
     """
-    data = db.run([sqlIdUtilisateur, (semaine, semaine, annee, annee)]).fetch()
+    profs = db.run(sqlIdUtilisateur).fetch()
     db.close()
 
     allIndispo = {}
-    for indispo in data:
-        id_enseignant = indispo["idEnseignant"]
-        # Si l'enseignant n'est pas déjà dans le dictionnaire
-        if id_enseignant not in allIndispo.keys():
-            allIndispo[id_enseignant] = [indispo]
-        else:
-            allIndispo[id_enseignant].append(indispo)
-
-    for id_enseignant, data in allIndispo.items():
-        dispo = Professeur2.generate_dispo(id_enseignant, annee, semaine)
-        allIndispo[id_enseignant] = dispo
+    for prof in profs:
+        id_enseignant = prof["idEnseignant"]
+        allIndispo[id_enseignant] = Professeur2.generate_dispo(id_enseignant, annee, semaine)
 
     return JsonResponse(allIndispo, safe=False)
 

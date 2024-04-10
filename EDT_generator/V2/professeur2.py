@@ -65,7 +65,7 @@ class Professeur2:
         """
 
         db = Database.get()
-        db.run([sql_prof_indispo, (id_prof, semaine - 1, semaine - 1, annee, annee)])
+        db.run([sql_prof_indispo, (id_prof, semaine, semaine, annee, annee)])
         data = db.fetch()
 
         dispo = [[ 1 for _ in range(24)] for __ in range(6)]
@@ -88,7 +88,7 @@ class Professeur2:
                 # Si le prof est abs toute la semaine
                 else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
         
-        prof_cours = db.run([sql_prof_cours, (id_prof, semaine - 1, annee)]).fetch()
+        prof_cours = db.run([sql_prof_cours, (id_prof, semaine, annee)]).fetch()
         for cours in prof_cours:
             heures = [cours["HeureDebut"] + i for i in range(cours["Duree"])]
             for heure in heures:
