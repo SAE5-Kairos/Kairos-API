@@ -35,7 +35,7 @@ class Professeur2:
             Permet de générer les disponibilités d'un professeur sous format binaire en fonction des données en BDD
             1 -> Disponible
             0 -> Indisponible
-            -1 -> Cours déjà présent (ou 0 si cours_is_indispo = True)
+            {'groupe': IdGroupe du cours} -> Cours déjà présent (ou 0 si cours_is_indispo = True)
 
             :param id_prof: int -> ID du professeur
             :param annee: int -> Année de la semaine
@@ -57,7 +57,7 @@ class Professeur2:
                 AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
         """
         sql_prof_cours = """
-            SELECT c.NumeroJour, c.HeureDebut, b.Duree
+            SELECT c.NumeroJour, c.HeureDebut, b.Duree, c.IdGroupe
             FROM Cours c
                 JOIN Banque b ON c.IdBanque = b.IdBanque
                 JOIN EDT e ON c.IdEDT = e.IdEDT
@@ -92,7 +92,7 @@ class Professeur2:
         for cours in prof_cours:
             heures = [cours["HeureDebut"] + i for i in range(cours["Duree"])]
             for heure in heures:
-                dispo[cours["NumeroJour"]][heure] = 0 if cours_is_indispo else -1
+                dispo[cours["NumeroJour"]][heure] = 0 if cours_is_indispo else {'groupe': cours["IdGroupe"]}
 
         return dispo
 
