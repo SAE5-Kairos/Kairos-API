@@ -11,10 +11,10 @@ data_manager = multiprocessing.Manager()
 best_edt = data_manager.list()
 
 class Manager:
-    NB_WORKERS = 30
+    NB_WORKERS = 20
     COEF_GAMMA_OVER_EPSILON = 0.95
-    PROFONDEUR_VOISINAGE = 10
-    NB_VOISINS = 3
+    PROFONDEUR_VOISINAGE = 5
+    NB_VOISINS = 5
 
     def __init__(self, data) -> None:
         self.data = data
@@ -102,13 +102,6 @@ class Worker:
                 best_score.value = score
                 best_edt[:] = self.edt.cours
 
-        if score >= best_score.value:
-            print("=========")
-            print(self.edt.get_score())
-            print(self.edt)
-            self.upgrade_edt_with_local_search()
-            print(self.edt.get_score())
-            print(self.edt)
         return True
 
     def choose_node(self):
@@ -256,7 +249,7 @@ class Worker:
 def generate():
     num_cores = multiprocessing.cpu_count()
     print("Nombre de coeurs:", num_cores)
-    total_workers = len(Cours2.ALL) * 75
+    total_workers = len(Cours2.ALL) * 50
     total_managers = total_workers // Manager.NB_WORKERS
     total_iterations = total_managers // num_cores + 1
 
@@ -266,6 +259,9 @@ def generate():
     db = Database.get("edt_generator")
 
     for index_iteration in range(total_iterations):
+        if best_score.value == 100:
+            print("===> Meilleur score trouvé")
+            break
         results = []
 
         data = get_worker_data(db)

@@ -4,7 +4,7 @@ from EDT_generator.V2.cours2 import Cours2
 
 class EDT2:
     MALUS_NB_HEURE = 10
-
+ 
     def __init__(self, _from_cours=None):
         self.cours: 'list[Cours2]' = []
         self.week = [[1 for _ in range(24)] for __ in range(6)]
@@ -12,7 +12,7 @@ class EDT2:
         if _from_cours:
             for cours in _from_cours:
                 self.add_cours(cours, cours.jour, cours.heure)
-
+        
     def __str__(self):
         return f"{self.week}"
 
@@ -108,7 +108,7 @@ class EDT2:
 
         # Malus samedi
         nb_courses_samedi = sum([course.duree for course in self.cours if course.jour == 5 and course.type_cours != "Midi"])
-        score_samedi = (1 - nb_courses_samedi / 24) * 100
+        score_samedi = (1 - (nb_courses_samedi / 24) * 1.5) * 100
 
         # Bonus midi
         cours_midi = len([course for course in self.cours if course.type_cours == "Midi"])
