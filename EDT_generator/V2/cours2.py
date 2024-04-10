@@ -63,7 +63,10 @@ class Cours2:
         return f"C{self.id}"
         
     def copy(self):
-        return Cours2(professeur=self.professeur, duree=self.duree, name=self.name, id_banque=self.id_banque, couleur=self.couleur, type_cours=self.type_cours, abrevaition=self.abrevaition, warning_message=self.warning_message, _copy=True, _id=self.id)
+        cpy = Cours2(professeur=self.professeur, duree=self.duree, name=self.name, id_banque=self.id_banque, couleur=self.couleur, type_cours=self.type_cours, abrevaition=self.abrevaition, warning_message=self.warning_message, _copy=True, _id=self.id)
+        if self.type_cours == "Midi":
+            cpy.jour = self.jour
+        return cpy
 
     def save_associations(self=None):
         if self is None:
@@ -134,6 +137,18 @@ class Cours2:
         sql = """
             UPDATE ALL_ASSOCIATIONS
             SET NB_CRENEAUX = (SELECT COUNT(*) FROM ALL_ASSOCIATIONS AS A WHERE A.ID_COURS = ALL_ASSOCIATIONS.ID_COURS);
+        """
+        db.run(sql)
+        db.close()
+
+    @staticmethod
+    def init():
+        Cours2.ALL = []
+        Cours2.ASSOCIATIONS = {}
+        Cours2.AUTO_INCREMENT = 0
+        db = Database.get("edt_generator")
+        sql = """
+            DELETE FROM ALL_ASSOCIATIONS;
         """
         db.run(sql)
         db.close()

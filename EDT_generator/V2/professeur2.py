@@ -58,3 +58,7 @@ class Professeur2:
                 else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
 
         return dispo
+
+    @staticmethod
+    def init():
+        Professeur2.ALL = []

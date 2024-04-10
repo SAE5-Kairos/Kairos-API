@@ -11,10 +11,10 @@ data_manager = multiprocessing.Manager()
 best_edt = data_manager.list()
 
 class Manager:
-    NB_WORKERS = 20
+    NB_WORKERS = 15
     COEF_GAMMA_OVER_EPSILON = 0.95
-    PROFONDEUR_VOISINAGE = 5
-    NB_VOISINS = 5
+    PROFONDEUR_VOISINAGE = 3
+    NB_VOISINS = 3
 
     def __init__(self, data) -> None:
         self.data = data
@@ -92,15 +92,15 @@ class Worker:
             except Exception as e: print("Worker local search:", e)
         score = self.edt.get_score()
 
-        #TODO: Save en abs les assoc_id
         for cours in self.edt.cours:
             assoc_id = cours.get_association()
             self.global_pheromones_inserts.append((assoc_id, score, 0))
 
         if score > best_score.value:
             with global_var_lock:
-                best_score.value = score
-                best_edt[:] = self.edt.cours
+                if score > best_score.value:
+                    best_score.value = score
+                    best_edt[:] = self.edt.cours
 
         return True
 
@@ -154,15 +154,93 @@ class Worker:
             slots = []
 
             for slot in self.available_slots[other_cours_id]:
+                if slot['JOUR'] != jour:
+                    slots.append(slot)
+                    continue
+
                 slot_hours = [slot['HEURE'] + i for i in range(slot['COURS'].duree)]
-                if slot['JOUR'] == jour and any([heure in slot_hours for heure in heures]):
+                if any([heure in slot_hours for heure in heures]):
                     continue
                 slots.append(slot)
             self.available_slots[other_cours_id] = slots.copy()
 
     def upgrade_edt_with_local_search(self):
-        self.edt.get_score()
+        midi_dispo = [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        starting_slots = [index for index, value in enumerate(midi_dispo) if value == 1]
+
+        # Focer la pose des heures du midi
+        for cours in Cours2.ALL:
+            if cours.type_cours == "Midi" and cours not in self.edt.cours:
+                
+                # Retirer un cours pour placer le cours du midi
+                for critical_cours in self.edt.cours:
+                    if critical_cours.jour != cours.jour or critical_cours.type_cours == "Midi": continue
+                    
+                    # Si le cours bloque le midi
+                    if any([heure in midi_dispo for heure in range(critical_cours.heure, critical_cours.heure + critical_cours.duree)]):
+                        self.edt.remove_cours(critical_cours)
+                    
+                    slot_to_place = None
+                    # Si on le peux, on place le cours du midi
+                    for starting_slot in starting_slots:
+                        if self.edt.is_free(cours.jour, starting_slot, cours) == 1:
+                            slot_to_place = starting_slot
+                            break
+                    
+                    if slot_to_place is not None:
+                        try:self.edt.add_cours(cours, cours.jour, slot_to_place)
+                        except Exception as e: print("wtf ====>", e)
+                        self.rm_from_omega(cours.jour, slot_to_place, cours.duree, cours)
+                        break
+        
+        node = self.choose_node()
+        while node is not None:
+            try:
+                self.edt.add_cours(node['COURS'], node['JOUR'], node['HEURE'])
+                self.rm_from_omega(node['JOUR'], node['HEURE'], node['COURS'].duree, node['COURS'])
+            except Exception as e:
+                print("Worker running:", e)
+                break
+
+            node = self.choose_node()
+
+        # Essayer de retirer les heures du samedi
+        for samedi_cours in self.edt.cours.copy():
+            if samedi_cours.jour == 5:
+                self.edt.remove_cours(samedi_cours)
+
+                best_day = None
+                best_hour = None
+                max_score = 0
+                # Essayer toutes les autres places possibles et récupérer la meilleure
+                for slot in self.available_slots[samedi_cours.id]:
+                    if slot['JOUR'] == 5: continue
+                    if self.edt.is_free(slot['JOUR'], slot['HEURE'], samedi_cours) != 1: continue
+                    self.edt.add_cours(samedi_cours, slot['JOUR'], slot['HEURE'])
+                    
+                    new_score = self.edt.get_score()
+                    if new_score > max_score:
+                        max_score = new_score
+                        best_day = slot['JOUR']
+                        best_hour = slot['HEURE']
+                    
+                    tmp_cours: Cours2 = samedi_cours.copy()
+                    tmp_cours.jour = slot['JOUR']
+                    tmp_cours.heure = slot['HEURE']
+                    self.edt.remove_cours(tmp_cours)
+                
+                if best_day is not None:
+                    self.edt.add_cours(samedi_cours, best_day, best_hour)
+                    self.rm_from_omega(best_day, best_hour, samedi_cours.duree, samedi_cours)
+                else:
+                    self.edt.add_cours(samedi_cours, 5, samedi_cours.heure)
+
         score = self.edt.get_score()
+
+        # Sauvegarder les Phéromones
+        for cours in self.edt.cours:
+            assoc_id = cours.get_association()
+            self.global_pheromones_inserts.append((assoc_id, score, 0))
 
         for cours in self.edt.cours.copy():
             if not cours or cours.id not in self.available_slots or not self.available_slots[cours.id]:
@@ -192,26 +270,32 @@ class Worker:
 
             if voisin_before is not None:
                 voisins.append(voisin_before)
+
             if voisin_after is not None:
                 voisins.append(voisin_after)
-            
+
             # Ajouter les voisins
             for voisin in voisins:
                 # 1. Ajouter le cours à l'association
                 try: self.edt.add_cours(cours, voisin['JOUR'], voisin['HEURE'])
-                except Exception as e: raise Exception(f"X. Impossible d'ajouter le cours à l'association: {e}")
+                except Exception as e: print("X; Upgrade EDT:", e)
 
-                # 2. Essayer de faire des associations avec les autres cours
-                node = self.choose_node()
+                # 2. Essayer de placer tous les cours non placé sur le jour libéré
                 new_assocs = []
-                while node is not None:
-                    self.edt.add_cours(node['COURS'], node['JOUR'], node['HEURE'])
-                    new_assocs.append((node['JOUR'], node['HEURE'], node['COURS'], node['ID']))
-                    node = self.choose_node()
-                
+                for other_cours_id in self.available_slots:
+                    if other_cours_id == cours.id: continue
+                    if other_cours_id in self.edt.cours: continue
+
+                    for slot in self.available_slots[other_cours_id]:
+                        if slot['JOUR'] != cours.jour: continue
+                        try:
+                            self.edt.add_cours(slot['COURS'], slot['JOUR'], slot['HEURE'])
+                            new_assocs.append(slot)
+                        except: pass
+
                 # 3. Vérifier si la nouvelle association est meilleure
                 new_score = self.edt.get_score()
-                if new_score > score:
+                if new_score >= score:
                     score = new_score
                     best_assocs = new_assocs.copy()
                     best_assocs.append(voisin)
@@ -219,10 +303,10 @@ class Worker:
                 # 4. Enregister les Phéromones des nouvelles associations
                 # 5. Retirer les nouvelles associations
                 for new_assoc in new_assocs:
-                    self.global_pheromones_inserts.append((new_assoc[3], new_score, 1))
-                    tmp_cours: Cours2 = new_assoc[2].copy()
-                    tmp_cours.jour = new_assoc[0]
-                    tmp_cours.heure = new_assoc[1]
+                    self.global_pheromones_inserts.append((new_assoc['ID'], new_score, 1))
+                    tmp_cours: Cours2 = new_assoc['COURS'].copy()
+                    tmp_cours.jour = new_assoc['JOUR']
+                    tmp_cours.heure = new_assoc['HEURE']
                     self.edt.remove_cours(tmp_cours)
 
                 # 6. Retirer le cours ajouté
@@ -233,15 +317,16 @@ class Worker:
                 self.edt.remove_cours(main_cours)
 
             # 7. Ajouter la meilleure association
-            if len(best_assocs) > 0 and score > best_score.value:
+            if len(best_assocs) > 0 and score >= best_score.value:
                 for best_assoc in best_assocs:
                     self.edt.add_cours(cours, best_assoc['JOUR'], best_assoc['HEURE'])
                     self.rm_from_omega(best_assoc['JOUR'], best_assoc['HEURE'], best_assoc['COURS'].duree, best_assoc['COURS'])
                 
                 # 8. Update best_score & best_edt
                 with global_var_lock:
-                    best_score.value = score
-                    best_edt[:] = self.edt.cours
+                    if score > best_score.value:
+                        best_score.value = score
+                        best_edt[:] = self.edt.cours
             else:
                 self.edt.add_cours(cours, cours.jour, cours.heure)
                 
@@ -249,7 +334,7 @@ class Worker:
 def generate():
     num_cores = multiprocessing.cpu_count()
     print("Nombre de coeurs:", num_cores)
-    total_workers = len(Cours2.ALL) * 50
+    total_workers = len(Cours2.ALL) * 25
     total_managers = total_workers // Manager.NB_WORKERS
     total_iterations = total_managers // num_cores + 1
 
