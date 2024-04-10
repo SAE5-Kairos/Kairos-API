@@ -1,3 +1,6 @@
+from Kairos_API.database import Database
+
+
 class Professeur2:
     ALL = []
 
@@ -27,16 +30,44 @@ class Professeur2:
         raise Exception(f"[Professeur2][get]({id_prof}) -> Professeur non trouvé")
     
     @staticmethod
-    def generate_dispo(semaine: int, data: 'list[dict]'):
+    def generate_dispo(id_prof: int, annee: int, semaine: int, cours_is_indispo=False):
         """
             Permet de générer les disponibilités d'un professeur sous format binaire en fonction des données en BDD
             1 -> Disponible
             0 -> Indisponible
-            :param semaine: int -> Numéro de la semaine (ISO)
-            :param data: [ { DateDebut: datetime, DateFin: datetime } ] -> Absences du professeur (BDD)
+            -1 -> Cours déjà présent (ou 0 si cours_is_indispo = True)
+
+            :param id_prof: int -> ID du professeur
+            :param annee: int -> Année de la semaine
+            :param semaine: int -> Numéro de la semaine
 
             :return: [ [ int ] ] -> Disponibilités du professeur
         """
+
+        sql_prof_indispo = """
+            SELECT 
+                DateDebut, DateFin, 
+                WEEKDAY(DateDebut) AS JourDebut,
+                WEEKDAY(DateFin) AS JourFin
+            FROM 
+                Indisponibilite 
+            WHERE 
+                IdUtilisateur = %s 
+                AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
+                AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
+        """
+        sql_prof_cours = """
+            SELECT c.NumeroJour, c.HeureDebut, b.Duree
+            FROM Cours c
+                JOIN Banque b ON c.IdBanque = b.IdBanque
+                JOIN EDT e ON c.IdEDT = e.IdEDT
+            WHERE b.IdUtilisateur = %s AND e.Semaine = %s AND e.Annee = %s
+        """
+
+        db = Database.get()
+        db.run([sql_prof_indispo, (id_prof, semaine - 1, semaine - 1, annee, annee)])
+        data = db.fetch()
+
         dispo = [[ 1 for _ in range(24)] for __ in range(6)]
         for indispo in data:
             if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
@@ -56,6 +87,12 @@ class Professeur2:
 
                 # Si le prof est abs toute la semaine
                 else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
+        
+        prof_cours = db.run([sql_prof_cours, (id_prof, semaine - 1, annee)]).fetch()
+        for cours in prof_cours:
+            heures = [cours["HeureDebut"] + i for i in range(cours["Duree"])]
+            for heure in heures:
+                dispo[cours["NumeroJour"]][heure] = 0 if cours_is_indispo else -1
 
         return dispo
 

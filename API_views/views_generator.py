@@ -132,19 +132,7 @@ def generate_edt_v2(request):
     db.close()
     print("Ready to generate EDT")
 
-    sql_prof_indispo = """
-        SELECT 
-            DateDebut, DateFin, 
-            WEEKDAY(DateDebut) AS JourDebut,
-            WEEKDAY(DateFin) AS JourFin
-        FROM 
-            Indisponibilite 
-        WHERE 
-            IdUtilisateur = %s 
-            AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
-            AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
-    """
-
+    
     db = Database.get()
     Cours2.ALL = []
     Professeur2.ALL = []
@@ -167,8 +155,7 @@ def generate_edt_v2(request):
 
         # Créer le professeur si il n'existe pas
         if id_prof not in Professeur2.ALL:
-            db.run([sql_prof_indispo, (id_prof, cours_data['semaine'] - 1, cours_data['semaine'] - 1, cours_data['annee'], cours_data['annee'])])
-            dispo = Professeur2.generate_dispo(cours_data['semaine'], db.fetch())
+            dispo = Professeur2.generate_dispo(id_prof, cours_data['annnee'], cours_data['semaine'], cours_is_indispo=True)
             prof = Professeur2(id_prof, nom_prof, dispo)
         else: prof = Professeur2.get(id_prof)
 
@@ -206,27 +193,7 @@ def generate_edt_v2(request):
 @csrf_exempt
 @method_awaited("GET")
 def get_prof_dispo(request, id_prof, semaine, annee):
-    semaine -= 1 # Pour s'accorder avec la norme ISO du calendrier
-
-    db = Database.get()
-    sql = """
-        SELECT 
-            DateDebut, DateFin, 
-            WEEKDAY(DateDebut) AS JourDebut,
-            WEEKDAY(DateFin) AS JourFin
-        FROM 
-            Indisponibilite 
-        WHERE 
-            IdUtilisateur = %s 
-            AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
-            AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
-    """
-    data = db.run([sql, (id_prof, semaine, semaine, annee, annee)]).fetch()
-    db.close()
-    semaine -= 1
-    
-    dispo = Professeur2.generate_dispo(semaine, data)
-
+    dispo = Professeur2.generate_dispo(id_prof, annee, semaine)
     return JsonResponse(dispo, safe=False)
 
 @csrf_exempt
@@ -256,26 +223,7 @@ def get_prof_dispo_all(request, semaine, annee):
             allIndispo[id_enseignant].append(indispo)
 
     for id_enseignant, data in allIndispo.items():
-        dispo = Professeur2.generate_dispo(semaine, data)
-        # for indispo in data:
-        #     if indispo["DateFin"].isocalendar()[1] > semaine: indispo['JourFin'] = 6
-
-        #     if indispo["DateDebut"].date() == indispo["DateFin"].date():
-        #         for creneau in range((indispo["DateDebut"].hour - 8) * 60 + indispo["DateDebut"].minute, (indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-        #             dispo[indispo["DateDebut"].weekday()][creneau // 30] = 0
-
-        #     else:
-        #         # Si l'absence est sur la même semaine
-        #         if indispo["DateDebut"].isocalendar()[1]  == indispo["DateFin"].isocalendar()[1]:
-        #             for day in range(indispo["DateDebut"].weekday(), indispo["DateFin"].weekday()):
-        #                 dispo[day] = [ 0 for _ in range(24)]
-
-        #             for creneau in range((indispo["DateFin"].hour - 8) * 60 + indispo["DateFin"].minute, 30):
-        #                 dispo[indispo["DateFin"].weekday()][creneau // 30] = 0
-
-        #         # Si le prof est abs toute la semaine
-        #         else: dispo = [[ 0 for _ in range(24)] for __ in range(6)]
-
+        dispo = Professeur2.generate_dispo(id_enseignant, annee, semaine)
         allIndispo[id_enseignant] = dispo
 
     return JsonResponse(allIndispo, safe=False)
