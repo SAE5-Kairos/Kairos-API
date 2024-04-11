@@ -1,3 +1,4 @@
+import platform
 import datetime, multiprocessing, random, asyncio
 from typing import Union
 from EDT_generator.V2.cours2 import Cours2
@@ -331,7 +332,7 @@ class Worker:
                 self.edt.add_cours(cours, cours.jour, cours.heure)
                 
        
-def generate():
+def generate(id_generateur:int):
     num_cores = multiprocessing.cpu_count()
     print("Nombre de coeurs:", num_cores)
     total_workers = len(Cours2.ALL) * 25
@@ -341,7 +342,13 @@ def generate():
     best_score.value = 0
     best_edt[:] = []
 
+    debut = datetime.datetime.now()
     db = Database.get("edt_generator")
+
+    sql = """
+        UPDATE InstanceGeneration SET NbWorkers = %s, NbManagers = %s, NbCores = %s, Processor = %s WHERE IdInstanceGeneration = %s;
+    """
+    db.run([sql, (total_workers, total_managers, num_cores, platform.processor(), id_generateur)])
 
     for index_iteration in range(total_iterations):
         if best_score.value == 100:
@@ -372,7 +379,11 @@ def generate():
         print(f"===> Meilleur score: {best_score.value}")
 
     edt = EDT2(_from_cours=best_edt)
+    sql = """UPDATE InstanceGeneration SET EnCours = 0, Duree = %s, Score = %s WHERE IdInstanceGeneration = %s;"""
+    
+    db.run([sql, (datetime.datetime.now() - debut, edt.get_score(), id_generateur)])
     db.close()
+    
     print(f"===> {Manager.NB_WORKERS * num_cores * total_iterations} workers ont fini de travailler")
     print(f"===> Meilleur score: {edt.get_score()}")
     return edt

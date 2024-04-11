@@ -18,11 +18,34 @@ from Kairos_API.core import method_awaited
 
 @csrf_exempt
 @method_awaited("POST")
-def generate_edt(request):
+def generate_edt(request, id_admin):
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
 
-    if len(body) == 0: raise Exception("[API][generate_edt]() -> Impossible de générer un emploi du temps sans cours")
+    if len(body) == 0: return JsonResponse({"error": "Aucune donnée fournie"}, status=400)
+    db = Database.get('edt_generator')
+
+    sql = """
+        SELECT
+            CONCAT(u.Prenom, ' ', u.Nom) AS NomAdmin, IdInstanceGeneration, DHDebut
+        FROM
+            InstanceGeneration ig
+            JOIN Utilisateur u ON ig.IdUtilisateur = u.IdUtilisateur
+        WHERE
+            EnCours = 1
+    """
+
+    db.run(sql)
+    if db.exists():
+        data = db.fetch(first=True)
+        return JsonResponse({"error": f"Une génération est déjà en cours par {data['NomAdmin']} depuis le {data['DHDebut']} (ID: {data['IdInstanceGeneration']})"}, status=400)
+
+    sql = """
+        INSERT INTO InstanceGeneration (IdUtilisateur, DHDebut, EnCours)
+        VALUES (%s, NOW(), 1);
+    """
+    db.run([sql, (id_admin, )])
+    id_generation = db.last_id()
 
     sql_get_banque = """
         SELECT b.IdUtilisateur, u.Prenom, u.Nom, Duree, CouleurHexa, CONCAT(r.Libelle, ' - ', r.Nom) AS NomCours, t.Nom AS TypeCours, CONCAT(r.Libelle, ' - ', r.Abreviation) AS Abreviation
@@ -35,7 +58,6 @@ def generate_edt(request):
         WHERE IdBanque = %s;
     """
 
-    db = Database.get('edt_generator')
     db.run("DELETE FROM ALL_ASSOCIATIONS;")
     db.run("DELETE FROM PHEROMONES2;")
     db.close()
@@ -96,7 +118,7 @@ def generate_edt(request):
     # 3. Générer les emplois du temps
     Cours2.save_associations()
 
-    edt = generate()
+    edt = generate(id_generation)
     return JsonResponse(edt.jsonify(), safe=False)
 
 @csrf_exempt
