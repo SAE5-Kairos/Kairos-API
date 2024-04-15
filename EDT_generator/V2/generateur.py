@@ -344,11 +344,12 @@ def generate(id_generateur:int):
 
     debut = datetime.datetime.now()
     db = Database.get("edt_generator")
+    db_server = Database.get()
 
     sql = """
         UPDATE InstanceGeneration SET NbWorkers = %s, NbManagers = %s, NbCores = %s, Processor = %s WHERE IdInstanceGeneration = %s;
     """
-    db.run([sql, (total_workers, total_managers, num_cores, platform.processor(), id_generateur)])
+    db_server.run([sql, (total_workers, total_managers, num_cores, platform.processor(), id_generateur)])
 
     for index_iteration in range(total_iterations):
         if best_score.value == 100:
@@ -381,8 +382,9 @@ def generate(id_generateur:int):
     edt = EDT2(_from_cours=best_edt)
     sql = """UPDATE InstanceGeneration SET EnCours = 0, Duree = %s, Score = %s WHERE IdInstanceGeneration = %s;"""
     
-    db.run([sql, (datetime.datetime.now() - debut, edt.get_score(), id_generateur)])
+    db_server.run([sql, ((datetime.datetime.now() - debut).total_seconds(), edt.get_score(), id_generateur)])
     db.close()
+    db_server.close()
     
     print(f"===> {Manager.NB_WORKERS * num_cores * total_iterations} workers ont fini de travailler")
     print(f"===> Meilleur score: {edt.get_score()}")

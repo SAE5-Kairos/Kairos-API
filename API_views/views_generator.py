@@ -23,7 +23,7 @@ def generate_edt(request, id_admin):
     body = json.loads(body_unicode)
 
     if len(body) == 0: return JsonResponse({"error": "Aucune donnée fournie"}, status=400)
-    db = Database.get('edt_generator')
+    db = Database.get()
 
     sql = """
         SELECT
@@ -38,7 +38,7 @@ def generate_edt(request, id_admin):
     db.run(sql)
     if db.exists():
         data = db.fetch(first=True)
-        return JsonResponse({"error": f"Une génération est déjà en cours par {data['NomAdmin']} depuis le {data['DHDebut']} (ID: {data['IdInstanceGeneration']})"}, status=400)
+        #return JsonResponse({"error": f"Une génération est déjà en cours par {data['NomAdmin']} depuis le {data['DHDebut']} (ID: {data['IdInstanceGeneration']})"}, status=400)
 
     sql = """
         INSERT INTO InstanceGeneration (IdUtilisateur, DHDebut, EnCours)
@@ -58,13 +58,13 @@ def generate_edt(request, id_admin):
         WHERE IdBanque = %s;
     """
 
-    db.run("DELETE FROM ALL_ASSOCIATIONS;")
-    db.run("DELETE FROM PHEROMONES2;")
-    db.close()
+    db_local = db.get('edt_generator')
+    db_local.run("DELETE FROM ALL_ASSOCIATIONS;")
+    db_local.run("DELETE FROM PHEROMONES2;")
+    db_local.close()
     print("Ready to generate EDT")
 
     
-    db = Database.get()
     Cours2.ALL = []
     Professeur2.ALL = []
 
@@ -86,7 +86,7 @@ def generate_edt(request, id_admin):
 
         # Créer le professeur si il n'existe pas
         if id_prof not in Professeur2.ALL:
-            dispo = Professeur2.generate_dispo(id_prof, cours_data['annnee'], cours_data['semaine'], cours_is_indispo=True)
+            dispo = Professeur2.generate_dispo(id_prof, cours_data['annee'], cours_data['semaine'], cours_is_indispo=True)
             prof = Professeur2(id_prof, nom_prof, dispo)
         else: prof = Professeur2.get(id_prof)
 
