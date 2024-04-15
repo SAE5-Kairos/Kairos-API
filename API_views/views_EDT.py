@@ -329,6 +329,7 @@ def save_all_edt(request, semaine, annee):
 
 def save_one_edt(groupe: int, annee: int, semaine: int, week: dict, db: Database=None):
     close_db = False
+    
     if db is None: 
         db = Database.get()
         close_db = True
@@ -347,9 +348,9 @@ def save_one_edt(groupe: int, annee: int, semaine: int, week: dict, db: Database
     else:
         id_edt = db.fetch(first=True)['IdEDT']
         sql = """
-            DELETE FROM Cours WHERE IdEDT = %s;
+            DELETE FROM Cours WHERE IdEDT = %s AND IdGroupe = %s;
         """
-        db.run([sql, (id_edt,)])
+        db.run([sql, (id_edt, groupe)])
     
     # 2. Ajouter les cours
     sql = """
@@ -358,6 +359,7 @@ def save_one_edt(groupe: int, annee: int, semaine: int, week: dict, db: Database
     for jour, all_cours in enumerate(week.values()):
         for cours in all_cours:
             db.run([sql, (cours['idBanque'], id_edt, jour, cours['heureDebut'], groupe)])
+    
     if close_db: db.close()
 
 
@@ -416,6 +418,7 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
     # 1. Récupérer les groupes parents
     groupes = []
     """groupe enfant -> groupe parent -> groupe parent parent -> ... """
+
     sql_get_group = "SELECT * FROM Groupe WHERE IdGroupe = %s"
     current_groupe = db.run([sql_get_group, (id_groupe,)]).fetch(first=True)
     groupes.append(current_groupe)
@@ -448,6 +451,8 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
         # 2.1 Récupérer les cours du groupes
         all_cours = db.run([sql, (groupe['IdGroupe'], id_EDT)]).fetch()
 
+        print(groupe, all_cours)
+
         # 3. Ajouter les cours à l'EDT
         for cours in all_cours:
             cours_obj = Cours2(
@@ -466,17 +471,18 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
                 print('----> RM .. COURS ', cours_obj, '//', cours_deja_place)
                 if cours['IdGroupe'] == id_groupe:
                     for placed_cours in cours_deja_place:
+                        if placed_cours.id == cours_obj.id: continue
                         edt_obj.remove_cours(placed_cours)
                     
                     cours_obj.warning_message = "Ce cours est prioritaire par rapport a un certain nombre de cours parents: " + '; '.join([f'[{crs.groupe}] {crs.name}' for crs in cours_deja_place])
                     edt_obj.add_cours(cours_obj, cours['NumeroJour'], cours["HeureDebut"])
                 else:
                     for placed_cours in cours_deja_place:
+                        if placed_cours.id == cours_obj.id or placed_cours.groupe == cours_obj.groupe: continue
                         placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité."
     
     for cours in edt_obj.cours:
         edt["cours"][jours[cours.jour]].append(cours.jsonify())
         
-    print(edt_obj, edt_obj.cours)
     if close_db: db.close()
     return edt

@@ -63,7 +63,7 @@ class EDT2:
         """
         heures = [heure + i for i in range(cours.duree)]
         collided_courses: list[Cours2] = []
-        for day_cours in [crs.jour == jour for crs in self.cours]:
+        for day_cours in [crs for crs in self.cours if crs.jour == jour]:
             heures_other_cours = [day_cours.heure + i for i in range(day_cours.duree)]
             if any(heure in heures for heure in heures_other_cours):
                 collided_courses.append(day_cours)
