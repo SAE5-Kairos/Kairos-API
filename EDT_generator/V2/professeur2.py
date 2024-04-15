@@ -53,7 +53,7 @@ class Professeur2:
                 Indisponibilite 
             WHERE 
                 IdUtilisateur = %s 
-                AND WEEK(DateDebut) <= %s AND WEEK(DateFin) >= %s
+                AND WEEK(DateDebut, 1) <= %s AND WEEK(DateFin, 1) >= %s
                 AND YEAR(DateDebut) <= %s AND YEAR(DateFin) >= %s
         """
         sql_prof_cours = """

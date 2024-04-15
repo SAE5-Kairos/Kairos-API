@@ -463,9 +463,13 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
                 # Récupérer le cours déjà placé
                 cours_deja_place = edt_obj.get_collided_courses(cours['NumeroJour'], cours["HeureDebut"], cours_obj)
                 
-                if groupe['IdGroupe'] == id_groupe:
+                print('----> RM .. COURS ', cours_obj, '//', cours_deja_place)
+                if cours['IdGroupe'] == id_groupe:
                     for placed_cours in cours_deja_place:
-                        placed_cours.warning_message = f"Un cours ({cours['libelle']}) est placé à cette même heure, ce même jour pour le même groupe."
+                        edt_obj.remove_cours(placed_cours)
+                    
+                    cours_obj.warning_message = "Ce cours est prioritaire par rapport a un certain nombre de cours parents: " + '; '.join([f'[{crs.groupe}] {crs.name}' for crs in cours_deja_place])
+                    edt_obj.add_cours(cours_obj, cours['NumeroJour'], cours["HeureDebut"])
                 else:
                     for placed_cours in cours_deja_place:
                         placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité."
@@ -473,5 +477,6 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
     for cours in edt_obj.cours:
         edt["cours"][jours[cours.jour]].append(cours.jsonify())
         
+    print(edt_obj, edt_obj.cours)
     if close_db: db.close()
     return edt

@@ -61,11 +61,12 @@ class EDT2:
         :param cours: Cours2 -> Cours à ajouter
         :return list[Cours2]: Liste des cours qui chevauchent
         """
-        duree = cours.duree
+        heures = [heure + i for i in range(cours.duree)]
         collided_courses: list[Cours2] = []
-        for i in range(duree):
-            if self.week[jour][heure + i] != 1 and self.week[jour][heure + i] not in collided_courses:
-                collided_courses.append(self.week[jour][heure + i])
+        for day_cours in [crs.jour == jour for crs in self.cours]:
+            heures_other_cours = [day_cours.heure + i for i in range(day_cours.duree)]
+            if any(heure in heures for heure in heures_other_cours):
+                collided_courses.append(day_cours)
         return collided_courses
 
     def remove_cours(self, cours:Cours2):
@@ -74,7 +75,10 @@ class EDT2:
         
         for i in range(cours.duree):
             self.week[cours.jour][cours.heure + i] = 1
-        self.cours.remove(cours)
+        
+        for index, crs in enumerate(self.cours):
+            if crs.id == cours.id:
+                del self.cours[index]
 
     def get_score(self, details=False):
         """

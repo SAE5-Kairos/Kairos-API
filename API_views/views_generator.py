@@ -17,7 +17,7 @@ from EDT_generator.V2.cours2 import Cours2
 from Kairos_API.core import method_awaited
 
 @csrf_exempt
-@method_awaited("POST")
+@method_awaited("PUT")
 def generate_edt(request, id_admin):
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
