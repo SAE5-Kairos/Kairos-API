@@ -11,6 +11,8 @@ global_var_lock = multiprocessing.Lock()
 data_manager = multiprocessing.Manager()
 best_edt = data_manager.list()
 
+fixed_cours = data_manager.list()
+
 class Manager:
     NB_WORKERS = 15
     COEF_GAMMA_OVER_EPSILON = 0.95
@@ -66,7 +68,8 @@ class Manager:
 class Worker:
 
     def __init__(self, gamma, epsilon, data) -> None:
-        self.edt = EDT2()
+        fixed_cours_obj = [Cours2.get(id_crs) for id_crs in fixed_cours]
+        self.edt = EDT2(_from_cours=fixed_cours_obj) if len(fixed_cours_obj) else EDT2()
         self.gamma = gamma      # Coefficient d'exploration
         self.epsilon = epsilon  # Coefficient de phéromones
 
@@ -74,6 +77,12 @@ class Worker:
         self.available_slots: 'dict[int, list]' = data[1].copy() # Dictionnaire des slots pour amélioration par voisinage
 
         self.global_pheromones_inserts: 'list[tuple]' = []
+
+        for crs in self.edt.cours:
+            if crs.jour is not None and crs.heure is not None:
+                self.rm_from_omega(crs.jour, crs.heure, crs.duree, crs)
+                if crs.id in self.available_slots:
+                    del self.available_slots[crs.id]
 
     async def run(self):
         while True:
@@ -86,7 +95,7 @@ class Worker:
             except Exception as e:
                 print("Worker running:", e)
                 break
-
+        
         # Sauvegarder les Phéromones
         for _ in range(Manager.PROFONDEUR_VOISINAGE):
             try: self.upgrade_edt_with_local_search()
@@ -94,6 +103,7 @@ class Worker:
         score = self.edt.get_score()
 
         for cours in self.edt.cours:
+            if cours.fixed: continue
             assoc_id = cours.get_association()
             self.global_pheromones_inserts.append((assoc_id, score, 0))
 
@@ -175,6 +185,7 @@ class Worker:
                 
                 # Retirer un cours pour placer le cours du midi
                 for critical_cours in self.edt.cours:
+                    if critical_cours.fixed: continue
                     if critical_cours.jour != cours.jour or critical_cours.type_cours == "Midi": continue
                     
                     # Si le cours bloque le midi
@@ -207,7 +218,7 @@ class Worker:
 
         # Essayer de retirer les heures du samedi
         for samedi_cours in self.edt.cours.copy():
-            if samedi_cours.jour == 5:
+            if samedi_cours.jour == 5 and not samedi_cours.fixed:
                 self.edt.remove_cours(samedi_cours)
 
                 best_day = None
@@ -240,10 +251,12 @@ class Worker:
 
         # Sauvegarder les Phéromones
         for cours in self.edt.cours:
+            if cours.fixed: continue
             assoc_id = cours.get_association()
             self.global_pheromones_inserts.append((assoc_id, score, 0))
 
         for cours in self.edt.cours.copy():
+            if cours.fixed: continue
             if not cours or cours.id not in self.available_slots or not self.available_slots[cours.id]:
                 continue
 
@@ -332,15 +345,19 @@ class Worker:
                 self.edt.add_cours(cours, cours.jour, cours.heure)
                 
        
-def generate(id_generateur:int):
+def generate(id_generateur:int, fixed_cours_obj:'list[Cours2]'):
     num_cores = multiprocessing.cpu_count()
     print("Nombre de coeurs:", num_cores)
+
     total_workers = len(Cours2.ALL) * 25
     total_managers = total_workers // Manager.NB_WORKERS
     total_iterations = total_managers // num_cores + 1
 
     best_score.value = 0
     best_edt[:] = []
+    fixed_cours[:] = [crs.id for crs in fixed_cours_obj]
+    for crs in fixed_cours_obj:
+        crs.fixed = True
 
     debut = datetime.datetime.now()
     db = Database.get("edt_generator")
@@ -428,6 +445,7 @@ def get_worker_data(db:Database, aggreg_func=None):
 
         for node in data:
             cours = Cours2.get(node['ID_COURS'])
+            if cours.fixed: continue
             omega_node = {
                 'ID': node['ID'], 'COURS': cours, 
                 'JOUR': node['JOUR'], 'HEURE': node['HEURE'], 

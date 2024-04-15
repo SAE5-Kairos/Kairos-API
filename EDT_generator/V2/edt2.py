@@ -5,7 +5,7 @@ from EDT_generator.V2.cours2 import Cours2
 class EDT2:
     MALUS_NB_HEURE = 10
  
-    def __init__(self, _from_cours=None):
+    def __init__(self, _from_cours:'list[Cours2]'=None):
         self.cours: 'list[Cours2]' = []
         self.week = [[1 for _ in range(24)] for __ in range(6)]
 
@@ -78,6 +78,7 @@ class EDT2:
         
         for index, crs in enumerate(self.cours):
             if crs.id == cours.id:
+                if crs.fixed: raise Exception("Tentative de modification de cours fixé")
                 del self.cours[index]
 
     def get_score(self, details=False):

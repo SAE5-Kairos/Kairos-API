@@ -7,7 +7,7 @@ class Cours2:
     ASSOCIATIONS: 'dict[int, dict[tuple, int]]' = {}
     """{cours_id: {(jour, heure): id_association}}"""
 
-    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur:str, type_cours:str, groupe:int=0, abrevaition:str='undefined', warning_message:str=None, _copy=False, _id=None) -> None:
+    def __init__(self, professeur:Professeur2, duree:int, name:str, id_banque:int, couleur:str, type_cours:str, groupe:int=0, abrevaition:str='undefined', warning_message:str=None, _copy=False, _id=None, _fixed:bool=False) -> None:
         """
         professeur: Professeur2
         duree: int (nb créneaux de 30 minutes)
@@ -32,6 +32,8 @@ class Cours2:
         self.abrevaition = abrevaition
         self.groupe = groupe
         self.warning_message = warning_message
+
+        self.fixed = _fixed
 
         if not _copy:
             Cours2.ALL.append(self)
@@ -63,14 +65,19 @@ class Cours2:
         return f"C{self.id}"
         
     def copy(self):
-        cpy = Cours2(professeur=self.professeur, duree=self.duree, name=self.name, id_banque=self.id_banque, couleur=self.couleur, type_cours=self.type_cours, abrevaition=self.abrevaition, warning_message=self.warning_message, _copy=True, _id=self.id)
+        cpy = Cours2(professeur=self.professeur, duree=self.duree, name=self.name, id_banque=self.id_banque, couleur=self.couleur, type_cours=self.type_cours, abrevaition=self.abrevaition, warning_message=self.warning_message, _copy=True, _id=self.id, _fixed=self.fixed)
         if self.type_cours == "Midi":
             cpy.jour = self.jour
+        
+        if self.fixed:
+            cpy.jour = self.jour
+            cpy.heure = self.heure
         return cpy
 
     def save_associations(self=None):
         if self is None:
             for cours in Cours2.ALL:
+                if cours.fixed: continue
                 cours.save_associations()
             
             Cours2.save_creneaux()

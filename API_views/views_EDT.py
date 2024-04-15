@@ -363,7 +363,7 @@ def save_one_edt(groupe: int, annee: int, semaine: int, week: dict, db: Database
     if close_db: db.close()
 
 
-def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
+def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None, only_parent:bool=False, as_edt:bool=False):
     """
     Récupère l'emploie du temps d'un groupe
     :param id_groupe: int
@@ -421,7 +421,7 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
 
     sql_get_group = "SELECT * FROM Groupe WHERE IdGroupe = %s"
     current_groupe = db.run([sql_get_group, (id_groupe,)]).fetch(first=True)
-    groupes.append(current_groupe)
+    if not only_parent: groupes.append(current_groupe)
 
     while current_groupe['IdGroupeSuperieur'] is not None:
         db.run([sql_get_group, (current_groupe['IdGroupeSuperieur'],)])
@@ -477,6 +477,10 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
                     for placed_cours in cours_deja_place:
                         if placed_cours.id == cours_obj.id or placed_cours.groupe == cours_obj.groupe: continue
                         placed_cours.warning_message = f"Un cours ({cours['libelle']}) d'un ensemble de groupe parent ({cours['Nom']}) est placé à cette même heure mais n'a pas la priorité."
+    
+    if as_edt:
+        if close_db: db.close()
+        return edt_obj
     
     for cours in edt_obj.cours:
         edt["cours"][jours[cours.jour]].append(cours.jsonify())

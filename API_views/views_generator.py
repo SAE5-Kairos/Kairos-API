@@ -4,6 +4,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 
 from EDT_generator.V2.generateur import generate
+from API_views.views_EDT import get_edt
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
@@ -18,7 +19,7 @@ from Kairos_API.core import method_awaited
 
 @csrf_exempt
 @method_awaited("PUT")
-def generate_edt(request, id_admin):
+def generate_edt(request, id_groupe, semaine, annee, id_admin):
     body_unicode = request.body.decode('utf-8')
     body = json.loads(body_unicode)
 
@@ -91,6 +92,16 @@ def generate_edt(request, id_admin):
         else: prof = Professeur2.get(id_prof)
 
         Cours2(professeur=prof, duree=duree, name=nom_cours, id_banque=cours_data['id_banque'], couleur=color, type_cours=banque_data['TypeCours'], abrevaition=banque_data['Abreviation'])
+    
+    # Récupérer les cours des parents (obligatoires, position bloquée)
+    edt_cours = get_edt(id_groupe, semaine, annee, only_parent=True, as_edt=True)
+    fixed_cours: 'list[Cours2]' = edt_cours.cours
+    for cours in fixed_cours:
+        racine = Cours2.get(cours.id)
+        racine.jour = cours.jour
+        racine.heure = cours.heure
+        racine.fixed = True
+   
     db.close()
 
     # 2. Créer les cours et profs du midi
@@ -118,7 +129,7 @@ def generate_edt(request, id_admin):
     # 3. Générer les emplois du temps
     Cours2.save_associations()
 
-    edt = generate(id_generation)
+    edt = generate(id_generation, fixed_cours)
     return JsonResponse(edt.jsonify(), safe=False)
 
 @csrf_exempt

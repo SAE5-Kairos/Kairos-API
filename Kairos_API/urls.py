@@ -31,7 +31,7 @@ urlpatterns = [
     path('api/reset_password/', views_authentification.ResetPassword),
 
     # Génerateur
-    path('api/generate_edt/<int:id_admin>/', views_generator.generate_edt),
+    path('api/generate_edt/<int:id_groupe>/<int:semaine>/<int:annee>/<int:id_admin>/', views_generator.generate_edt),
     path('api/get_prof_dispo/<int:semaine>/<int:annee>/', views_generator.get_prof_dispo_all),
     path('api/get_prof_dispo/<int:id_prof>/<int:semaine>/<int:annee>/', views_generator.get_prof_dispo),
 
