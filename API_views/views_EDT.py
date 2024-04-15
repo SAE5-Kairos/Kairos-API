@@ -451,8 +451,6 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
         # 2.1 Récupérer les cours du groupes
         all_cours = db.run([sql, (groupe['IdGroupe'], id_EDT)]).fetch()
 
-        print(groupe, all_cours)
-
         # 3. Ajouter les cours à l'EDT
         for cours in all_cours:
             cours_obj = Cours2(
@@ -468,7 +466,6 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None):
                 # Récupérer le cours déjà placé
                 cours_deja_place = edt_obj.get_collided_courses(cours['NumeroJour'], cours["HeureDebut"], cours_obj)
                 
-                print('----> RM .. COURS ', cours_obj, '//', cours_deja_place)
                 if cours['IdGroupe'] == id_groupe:
                     for placed_cours in cours_deja_place:
                         if placed_cours.id == cours_obj.id: continue
