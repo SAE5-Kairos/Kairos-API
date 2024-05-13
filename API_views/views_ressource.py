@@ -1,12 +1,13 @@
 import json
 from django.http import JsonResponse
 
-from Kairos_API.core import method_awaited
+from Kairos_API.core import method_awaited, jwt_required, Role
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
@@ -17,6 +18,7 @@ def get_all(request):
 
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited(["GET", "DELETE", "PUT"])
 def by_id(request, code: int):
     db = Database.get()
@@ -107,6 +109,7 @@ def by_id(request, code: int):
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("POST")
 def add(request):
     libelle = ""
