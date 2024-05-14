@@ -1,11 +1,12 @@
 import json
 from django.http import JsonResponse
 
-from Kairos_API.core import method_awaited
+from Kairos_API.core import method_awaited, jwt_required, Role
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("POST")
 def add_enseigne(request):
     db = Database.get()

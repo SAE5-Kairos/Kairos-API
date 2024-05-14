@@ -2,12 +2,13 @@ import json
 from django.shortcuts import render
 from django.http import JsonResponse
 
-from Kairos_API.core import method_awaited
+from Kairos_API.core import method_awaited, jwt_required, Role
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
@@ -16,6 +17,7 @@ def get_all(request):
     return JsonResponse(data, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_all_professors(request):
     db = Database.get()
@@ -30,6 +32,7 @@ def get_all_professors(request):
     return JsonResponse(data, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_all_students(request):
     db = Database.get()
@@ -45,6 +48,7 @@ def get_all_students(request):
 
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited(["GET", "DELETE", "PUT"])
 def by_id(request, code: int):
     db = Database.get()
@@ -131,6 +135,7 @@ def by_id(request, code: int):
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("POST")
 def add(request):
     prenom = ""
@@ -165,6 +170,7 @@ def add(request):
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_ressourcesByUser(request, code:int):
     db = Database.get()
@@ -181,6 +187,7 @@ def get_ressourcesByUser(request, code:int):
     return JsonResponse(result, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_ressourcesAllUsers(request):
     db = Database.get()

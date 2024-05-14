@@ -2,15 +2,13 @@ import json
 from django.shortcuts import render
 from django.http import JsonResponse
 
-from Kairos_API.core import method_awaited
+from Kairos_API.core import method_awaited, SECRET
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
 import jwt
 import bcrypt
 import datetime
-
-SECRET = "jesuislaphraseextremementsecretedelamortquituenormalementpersonneestsenseletrouvemaisbononsaitjamais"
 
 # Fonction de HASH de mot de passe
 def hash_password(password):
@@ -138,7 +136,7 @@ def ResetPassword(request):
     
     if not check_password(oldMdp, dataCurrentMdp):
         return JsonResponse({"error": "Mot de passe incorrect"}, safe=False)
-    
+
     # Hashage du nouveau mot de passe + mise à jour
     hashNewMdp = hash_password(newMdp)
 

@@ -5,7 +5,7 @@ from EDT_generator.V2.generateur import Worker, get_worker_data, best_edt, best_
 from EDT_generator.V2.edt2 import EDT2
 from EDT_generator.V2.cours2 import Cours2
 from EDT_generator.V2.professeur2 import Professeur2
-from Kairos_API.core import method_awaited
+from Kairos_API.core import method_awaited, jwt_required, Role
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
 
@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 #   le message d'erreur est alors dans la valeur de la clef "error"
 
 @csrf_exempt
+@jwt_required(roles=[Role.ETUDIANT, Role.PROFESSEUR, Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_all_by_semaine(request, semaine: int, annee: int):
     db = Database.get()
@@ -51,6 +52,7 @@ def get_all_by_semaine(request, semaine: int, annee: int):
 
 # Get by Semaine, Annee, idGroupe
 @csrf_exempt
+@jwt_required(roles=[Role.ETUDIANT, Role.PROFESSEUR, Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def by_groupe(request, semaine: int, annee: int, idGroupe: int):
     edt = get_edt(idGroupe, semaine, annee)
@@ -58,6 +60,7 @@ def by_groupe(request, semaine: int, annee: int, idGroupe: int):
 
 # Get by Semaine, Annee, idGroupe
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("PUT")
 def by_list_groupe(request, semaine: int, annee: int):
     # {
@@ -93,6 +96,7 @@ def by_list_groupe(request, semaine: int, annee: int):
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR, Role.PROFESSEUR])
 @method_awaited("GET")
 def by_enseignant(request, semaine: int, annee: int, idProf: int):
     # TODO: à vérifier
@@ -162,6 +166,7 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
 
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR, Role.PROFESSEUR])
 @method_awaited("GET")
 def by_enseignant(request, semaine: int, annee: int, idProf: int):
     db = Database.get()
@@ -229,6 +234,7 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
 
 # Get by Id, Delete by Id, Update by Id
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited(["GET", "DELETE", "PUT"])
 def by_id(request, code: int):
     db = Database.get()
@@ -280,6 +286,7 @@ def by_id(request, code: int):
         return JsonResponse(nb_row_affected == 1, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("POST")
 def add(request):
     date = ""
@@ -305,6 +312,7 @@ def add(request):
         return JsonResponse({"error":"An error has occurred during the process."}, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("PUT")
 def save_edt(request, groupe, semaine, annee):
     body_unicode = request.body.decode('utf-8')
@@ -315,6 +323,7 @@ def save_edt(request, groupe, semaine, annee):
     return JsonResponse(True, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("PUT")
 def save_all_edt(request, semaine, annee):
     db = Database.get()

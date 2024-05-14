@@ -15,9 +15,11 @@ from EDT_generator.edt_generator import EDT_GENERATOR, Ant
 from EDT_generator.V2.professeur2 import Professeur2
 from EDT_generator.V2.cours2 import Cours2
 
-from Kairos_API.core import method_awaited
+from Kairos_API.core import method_awaited, jwt_required, Role
+
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("PUT")
 def generate_edt(request, id_groupe, semaine, annee, id_admin):
     body_unicode = request.body.decode('utf-8')
@@ -133,12 +135,14 @@ def generate_edt(request, id_groupe, semaine, annee, id_admin):
     return JsonResponse(edt.jsonify(), safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.PROFESSEUR, Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_prof_dispo(request, id_prof, semaine, annee):
     dispo = Professeur2.generate_dispo(id_prof, annee, semaine)
     return JsonResponse(dispo, safe=False)
 
 @csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
 @method_awaited("GET")
 def get_prof_dispo_all(request, semaine, annee):
     db = Database.get()
