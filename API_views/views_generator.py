@@ -151,7 +151,7 @@ def get_prof_dispo_all(request, semaine, annee):
             u.IdUtilisateur as idEnseignant
         FROM 
             Utilisateur u
-            JOIN RoleUtilisateur ru ON u.IdUtilisateur = ru.IdUtilisateur
+            JOIN RoleUtilisateur ru ON u.IdRole = ru.IdRoleUtilisateur
         WHERE
             ru.Label = 'Professeur'
     """
