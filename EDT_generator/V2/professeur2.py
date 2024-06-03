@@ -61,7 +61,7 @@ class Professeur2:
             FROM Cours c
                 JOIN Banque b ON c.IdBanque = b.IdBanque
                 JOIN EDT e ON c.IdEDT = e.IdEDT
-            WHERE b.IdUtilisateur = %s AND e.Semaine = %s AND e.Annee = %s
+            WHERE b.IdUtilisateur = %s AND e.Semaine = %s AND e.Annee = %s AND c.HeureDebut IS NOT NULL
         """
 
         db = Database.get()
