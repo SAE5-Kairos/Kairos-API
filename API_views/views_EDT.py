@@ -420,7 +420,9 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None, only_par
     """
     db.run([sql, (semaine, annee)])
     
-    if not db.exists(): edt["info"] = f"Aucun edt n'a été créé pour la semaine {semaine} de l'année {annee}"; return edt
+    if not db.exists(): 
+        edt["info"] = f"Aucun edt n'a été créé pour la semaine {semaine} de l'année {annee}"
+        return edt if not as_edt else EDT2()
 
     id_EDT = db.fetch(first=True)['IdEDT']
     

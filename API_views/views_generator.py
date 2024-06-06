@@ -97,7 +97,7 @@ def generate_edt(request, id_groupe, semaine, annee, id_admin):
     
     # Récupérer les cours des parents (obligatoires, position bloquée)
     edt_cours = get_edt(id_groupe, semaine, annee, only_parent=True, as_edt=True)
-    fixed_cours: 'list[Cours2]' = edt_cours['cours']
+    fixed_cours: 'list[Cours2]' = edt_cours.cours
     for cours in fixed_cours:
         racine = Cours2.get(cours.id)
         racine.jour = cours.jour
