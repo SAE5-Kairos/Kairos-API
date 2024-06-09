@@ -50,7 +50,7 @@ class Professeur2:
                 WEEKDAY(DateDebut) AS JourDebut,
                 WEEKDAY(DateFin) AS JourFin
             FROM 
-                Indisponibilite 
+                IndisponibiliteProf 
             WHERE 
                 IdUtilisateur = %s 
                 AND WEEK(DateDebut, 1) <= %s AND WEEK(DateFin, 1) >= %s

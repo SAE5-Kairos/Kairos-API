@@ -1,21 +1,14 @@
-import datetime
-import json, asyncio
-from django.shortcuts import render
+import json
 from django.http import JsonResponse
 
-from EDT_generator.V2.generateur import generate
 from API_views.views_EDT import get_edt
 from Kairos_API.database import Database
+from Kairos_API.core import method_awaited, jwt_required, Role
 from django.views.decorators.csrf import csrf_exempt
 
-from EDT_generator.professeur import Professeur
-from EDT_generator.cours import Cours
-from EDT_generator.edt_generator import EDT_GENERATOR, Ant
-
+from EDT_generator.V2.generateur import generate
 from EDT_generator.V2.professeur2 import Professeur2
 from EDT_generator.V2.cours2 import Cours2
-
-from Kairos_API.core import method_awaited, jwt_required, Role
 
 
 @csrf_exempt

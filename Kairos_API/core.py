@@ -25,7 +25,7 @@ class Role(Enum):
     ETUDIANT = "Etudiant"
 
 
-def jwt_required(roles: [Role] = None):
+def jwt_required(roles: 'list[Role]' = None):
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):

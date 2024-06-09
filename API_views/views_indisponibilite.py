@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 @method_awaited("GET")
 def get_all(request):
     db = Database.get()
-    data = db.run("SELECT * FROM Indisponibilite").fetch()
+    data = db.run("SELECT * FROM IndisponibiliteProf").fetch()
     db.close()
     return JsonResponse(data, safe=False)
 
@@ -25,8 +25,8 @@ def by_id(request, code: int):
     if request.method == "GET":
         sql = """
             SELECT *
-            FROM Indisponibilite 
-            WHERE Indisponibilite.IdIndisponibilite = %s
+            FROM IndisponibiliteProf 
+            WHERE IndisponibiliteProf.IdIndisponibilite = %s
         """
         data = db.run([sql, (code,)]).fetch()
         db.close()
@@ -35,8 +35,8 @@ def by_id(request, code: int):
     elif request.method == "DELETE":
         sql = """
         DELETE
-        FROM Indisponibilite 
-        WHERE Indisponibilite.IdIndisponibilite = %s;
+        FROM IndisponibiliteProf 
+        WHERE IndisponibiliteProf.IdIndisponibilite = %s;
             """
 
         nb_row_affected = db.run([sql, (code,)]).fetch(rowcount=True)
@@ -58,11 +58,11 @@ def by_id(request, code: int):
 
         db = Database.get()
         sql = """
-                    UPDATE Indisponibilite
-                    SET Indisponibilite.DateDebut = %s,
-                        Indisponibilite.DateFin = %s,
-                        Indisponibilite.IdUtilisateur = %s
-                    WHERE Indisponibilite.IdIndisponibilite = %s
+                    UPDATE IndisponibiliteProf
+                    SET IndisponibiliteProf.DateDebut = %s,
+                        IndisponibiliteProf.DateFin = %s,
+                        IndisponibiliteProf.IdUtilisateur = %s
+                    WHERE IndisponibiliteProf.IdIndisponibilite = %s
                 """
         nb_row_affected = db.run([sql, (date_debut, date_fin, id_utilisateur, code)]).fetch(rowcount=True)
         db.close()
@@ -75,7 +75,7 @@ def by_id(request, code: int):
 def add(request):
     params = []
     sql = """
-        INSERT INTO Indisponibilite (DateDebut, DateFin, IdUtilisateur) VALUES
+        INSERT INTO IndisponibiliteProf (DateDebut, DateFin, IdUtilisateur) VALUES
     """
     try:
         body_unicode = request.body.decode('utf-8')
@@ -104,12 +104,12 @@ def get_indiponibility_by_user_id(request, code: int):
     db = Database.get()
     # Get uniquement les indisponibilité du jour et les suivantes, les précédentes le seront pas
     sql = """
-        SELECT Indisponibilite.IdIndisponibilite, Indisponibilite.DateDebut, Indisponibilite.DateFin
-        FROM Indisponibilite
-        LEFT JOIN Utilisateur ON Utilisateur.IdUtilisateur = Indisponibilite.IdUtilisateur 
+        SELECT IndisponibiliteProf.IdIndisponibilite, IndisponibiliteProf.DateDebut, IndisponibiliteProf.DateFin
+        FROM IndisponibiliteProf
+        LEFT JOIN Utilisateur ON Utilisateur.IdUtilisateur = IndisponibiliteProf.IdUtilisateur 
         WHERE Utilisateur.IdUtilisateur = %s
-        AND Indisponibilite.DateFin > DATE_SUB(NOW(), INTERVAL 1 DAY)
-        ORDER BY Indisponibilite.DateDebut
+        AND IndisponibiliteProf.DateFin > DATE_SUB(NOW(), INTERVAL 1 DAY)
+        ORDER BY IndisponibiliteProf.DateDebut
     """
     data = db.run([sql, (code,)]).fetch()
     db.close()

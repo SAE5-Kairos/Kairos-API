@@ -52,7 +52,7 @@ urlpatterns = [
     path('api/utilisateur/<int:code>/', views_utilisateurs.by_id),
     path('api/utilisateur/', views_utilisateurs.add),
 
-    # Indisponibilite
+    # IndisponibiliteProf
     path('api/indisponibilites/', views_indisponibilite.get_all),
     path('api/indisponibilite/<int:code>/', views_indisponibilite.by_id),
     path('api/indisponibilite/', views_indisponibilite.add),

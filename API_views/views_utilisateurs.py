@@ -70,8 +70,8 @@ def by_id(request, code: int):
 
         sql_indisponibilite = """
         DELETE
-        FROM Indisponibilite 
-        WHERE Indisponibilite.IdUtilisateur = %s;
+        FROM IndisponibiliteProf 
+        WHERE IndisponibiliteProf.IdUtilisateur = %s;
             """
 
         sql_cours = """

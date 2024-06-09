@@ -1,10 +1,10 @@
 import json
 from django.http import JsonResponse
 
-from EDT_generator.V2.generateur import Worker, get_worker_data, best_edt, best_score
 from EDT_generator.V2.edt2 import EDT2
 from EDT_generator.V2.cours2 import Cours2
 from EDT_generator.V2.professeur2 import Professeur2
+
 from Kairos_API.core import method_awaited, jwt_required, Role
 from Kairos_API.database import Database
 from django.views.decorators.csrf import csrf_exempt
