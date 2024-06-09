@@ -26,7 +26,7 @@ def by_id(request, code: int):
         sql = """
             SELECT *
             FROM IndisponibiliteProf 
-            WHERE IndisponibiliteProf.IdIndisponibilite = %s
+            WHERE IndisponibiliteProf.IdIndisponibiliteProf = %s
         """
         data = db.run([sql, (code,)]).fetch()
         db.close()
@@ -36,7 +36,7 @@ def by_id(request, code: int):
         sql = """
         DELETE
         FROM IndisponibiliteProf 
-        WHERE IndisponibiliteProf.IdIndisponibilite = %s;
+        WHERE IndisponibiliteProf.IdIndisponibiliteProf = %s;
             """
 
         nb_row_affected = db.run([sql, (code,)]).fetch(rowcount=True)
@@ -62,7 +62,7 @@ def by_id(request, code: int):
                     SET IndisponibiliteProf.DateDebut = %s,
                         IndisponibiliteProf.DateFin = %s,
                         IndisponibiliteProf.IdUtilisateur = %s
-                    WHERE IndisponibiliteProf.IdIndisponibilite = %s
+                    WHERE IndisponibiliteProf.IdIndisponibiliteProf = %s
                 """
         nb_row_affected = db.run([sql, (date_debut, date_fin, id_utilisateur, code)]).fetch(rowcount=True)
         db.close()
@@ -104,7 +104,7 @@ def get_indiponibility_by_user_id(request, code: int):
     db = Database.get()
     # Get uniquement les indisponibilité du jour et les suivantes, les précédentes le seront pas
     sql = """
-        SELECT IndisponibiliteProf.IdIndisponibilite, IndisponibiliteProf.DateDebut, IndisponibiliteProf.DateFin
+        SELECT IndisponibiliteProf.IdIndisponibiliteProf, IndisponibiliteProf.DateDebut, IndisponibiliteProf.DateFin
         FROM IndisponibiliteProf
         LEFT JOIN Utilisateur ON Utilisateur.IdUtilisateur = IndisponibiliteProf.IdUtilisateur 
         WHERE Utilisateur.IdUtilisateur = %s
