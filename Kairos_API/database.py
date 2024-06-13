@@ -130,8 +130,9 @@ try:
         ID_COURS INT,
         JOUR INT,
         HEURE INT,
+        ID_SALLE INT,
         NB_CRENEAUX INT,
-        INDEX idx_all_associations (ID_COURS, JOUR, HEURE)
+        INDEX idx_all_associations (ID_COURS, JOUR, HEURE, ID_SALLE)
     );
     """
     db_edt_generator.run(sql)
