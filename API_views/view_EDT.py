@@ -125,7 +125,7 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
     
     # Etape 1: Récupérer les cours et les banques de cours
     sql_get_parents_cours = f"""
-        SELECT IdCours, IdEDT, Groupe.nom as gnom, Salle.nom as snom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
+        SELECT IdCours, IdEDT, Groupe.nom as gnom, Salle.nom as snom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, Banque.Duree as duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
         FROM Cours
         JOIN Banque ON Cours.IdBanque = Banque.IdBanque
         JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -156,7 +156,7 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
             "libelle": cours["libelle"],
             "abreviation": cours["abreviation"],
             "heureDebut": cours["HeureDebut"],
-            "duree": cours["Duree"],
+            "duree": cours["duree"],
             "style": cours["style"],
         }
         edt['cours'][jour].append(cours)
@@ -194,7 +194,7 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
     
     # Etape 1: Récupérer les cours et les banques de cours
     sql_get_parents_cours = f"""
-        SELECT IdCours, IdEDT, Groupe.nom as gnom, Salle.nom as snom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
+        SELECT IdCours, IdEDT, Groupe.nom as gnom, Salle.nom as snom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, Banque.Duree as duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
         FROM Cours
         JOIN Banque ON Cours.IdBanque = Banque.IdBanque
         JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -224,7 +224,7 @@ def by_enseignant(request, semaine: int, annee: int, idProf: int):
             "libelle": cours["libelle"],
             "abreviation": cours["abreviation"],
             "heureDebut": cours["HeureDebut"],
-            "duree": cours["Duree"],
+            "duree": cours["duree"],
             "style": cours["style"],
         }
         edt['cours'][jour].append(cours)
@@ -446,7 +446,7 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None, only_par
     edt_obj = EDT2()
 
     sql = """
-        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
+        SELECT IdCours, IdEDT, Groupe.IdGroupe, Groupe.Nom, Cours.IdBanque, NumeroJour, HeureDebut, Utilisateur.IdUtilisateur, CONCAT(Utilisateur.Prenom, ' ', Utilisateur.Nom) AS enseignant, Banque.Duree as duree, TypeCours.Nom AS type, CONCAT(Ressource.Libelle,' - ',Ressource.Nom) AS libelle, Couleur.CouleurHexa AS style, CONCAT(Ressource.Libelle,' - ',Ressource.Abreviation) AS abreviation
         FROM Cours
         JOIN Banque ON Cours.IdBanque = Banque.IdBanque
         JOIN Utilisateur ON Banque.IdUtilisateur = Utilisateur.IdUtilisateur
@@ -465,7 +465,7 @@ def get_edt(id_groupe: int, semaine: int, annee: int, db:Database=None, only_par
         # 3. Ajouter les cours à l'EDT
         for cours in all_cours:
             cours_obj = Cours2(
-                Professeur2(cours["IdUtilisateur"], cours['enseignant']), duree=cours["Duree"], name=cours['libelle'], 
+                Professeur2(cours["IdUtilisateur"], cours['enseignant']), duree=cours["duree"], name=cours['libelle'], 
                 id_banque=cours['IdBanque'], couleur=cours["style"], type_cours=cours["type"], 
                 abrevaition=cours["abreviation"], groupe=cours['IdGroupe']
             )
