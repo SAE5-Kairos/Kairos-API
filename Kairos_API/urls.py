@@ -33,6 +33,9 @@ urlpatterns = [
     path('api/get_prof_dispo/<int:semaine>/<int:annee>/', view_generator.get_prof_dispo_all),
     path('api/get_prof_dispo/<int:id_prof>/<int:semaine>/<int:annee>/', view_generator.get_prof_dispo),
 
+    # Indisponibilités des salles
+    path('api/get_salle_dispo_all/<int:semaine>/<int:annee>/', view_generator.get_salle_dispo_all),
+
     # Enseigne
     path('api/add-enseignes/', view_enseigne.add_enseigne),
 

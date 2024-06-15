@@ -2,6 +2,7 @@ import json
 from django.http import JsonResponse
 
 from API_views.view_EDT import get_edt
+from EDT_generator.Salle import Salle
 from Kairos_API.database import Database
 from Kairos_API.core import method_awaited, jwt_required, Role
 from django.views.decorators.csrf import csrf_exempt
@@ -155,6 +156,27 @@ def get_prof_dispo_all(request, semaine, annee):
     for prof in profs:
         id_enseignant = prof["idEnseignant"]
         allIndispo[id_enseignant] = Professeur2.generate_dispo(id_enseignant, annee, semaine)
+
+    return JsonResponse(allIndispo, safe=False)
+
+@csrf_exempt
+@jwt_required(roles=[Role.ADMINISTRATEUR])
+@method_awaited("GET")
+def get_salle_dispo_all(request, semaine, annee):
+    db = Database.get()
+    sqlIdSalle= """
+        SELECT DISTINCT
+            Salle.IdSalle as idSalle
+        FROM 
+            Salle
+    """
+    salles = db.run(sqlIdSalle).fetch()
+    db.close()
+
+    allIndispo = {}
+    for salle in salles:
+        id_salle = salle["idSalle"]
+        allIndispo[id_salle] = Salle.generate_dispo(id_salle, annee, semaine)
 
     return JsonResponse(allIndispo, safe=False)
 
